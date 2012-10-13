@@ -1,0 +1,128 @@
+/* 
+ * hCraft - A custom Minecraft server.
+ * Copyright (C) 2012	Jacob Zhitomirsky
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#ifndef _hCraft__COMMAND_H_
+#define _hCraft__COMMAND_H_
+
+#include <vector>
+#include <string>
+#include <unordered_map>
+
+
+namespace hCraft {
+	
+	class player;
+	
+	
+	/* 
+	 * Command argument parser.
+	 */
+	class command_reader
+	{
+		std::string name;
+		std::string args;
+		
+	public:
+		/* 
+		 * Constructs a new command reader from the given string (should be in the
+		 * form of: /<cmd> <arg1> <arg2> ... <argN>
+		 */
+		command_reader (const std::string& str);
+		
+		
+		/* 
+		 * Returns the name of the parsed command.
+		 */
+		const std::string& command_name ();
+		
+		
+		/* 
+		 * Parses the argument list.
+		 * In case of an error, false is returned and an appropriate message is sent
+		 * to player @{err}.
+		 */
+		bool parse_args (player *err);
+	};
+	
+	
+	/* 
+	 * The base class for all commands.
+	 */
+	class command
+	{
+	public:
+		/* 
+		 * Returns the name of the command (the same one used to execute it, /<name>).
+		 */
+		virtual const char* get_name () = 0;
+		
+		/* 
+		 * Fills the given vector with possible usage patterns.
+		 */
+		virtual void get_usage (std::vector<std::string>& out) = 0;
+		
+		/* 
+		 * Fills the specified vector with the command's description\help.
+		 */
+		virtual void get_help (std::vector<std::string>& out) = 0;
+		
+		/* 
+		 * Fills the specified vector with usage examples.
+		 */
+		virtual void get_examples (std::vector<std::string>& out) = 0;
+		
+		/* 
+		 * Returns the permissions string (in the form of: <node1>.<node2>. ... .<nodeN>).
+		 */
+		virtual const char* get_permissions () = 0;
+		
+	//----
+		
+		/* 
+		 * Executes the command on the specified player.
+		 */
+		virtual void execute (player *pl, command_reader& reader) = 0;
+	};
+	
+	
+	class command_list
+	{
+		std::unordered_map<std::string, command *> commands;
+		
+	public:
+		/* 
+		 * Class destructor.
+		 * Destroys all registered commands.
+		 */
+		~command_list ();
+		
+		
+		/* 
+		 * Adds the specified command to the list.
+		 */
+		void add (command *cmd);
+		
+		/* 
+		 * Finds the command that has the specified name (case-sensitive).
+		 */
+		command* find (const char *name);
+	};
+}
+
+#endif
+

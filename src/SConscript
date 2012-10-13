@@ -1,0 +1,39 @@
+hCraft_sources = Split("""
+		main.cpp
+		logger.cpp
+		server.cpp
+		player.cpp
+		playerlist.cpp
+		packet.cpp
+		scheduler.cpp
+		entity.cpp
+		position.cpp
+		chunk.cpp
+		map.cpp
+		world.cpp
+		blocks.cpp
+		mapgenerator.cpp
+		flatgrass.cpp
+		stringutils.cpp
+		wordwrap.cpp
+		threadpool.cpp
+		mapprovider.cpp
+		hwprovider.cpp
+		
+		commands/command.cpp
+		commands/help.cpp
+		commands/me.cpp
+		commands/ping.cpp
+		""")
+
+hCraft_libs = Split("""
+		pthread
+		event
+		m
+		yaml-cpp
+		z
+		""")
+
+Import('env')
+env.Program(target = 'hCraft', source = hCraft_sources, LIBS = hCraft_libs)
+

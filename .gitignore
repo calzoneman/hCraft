@@ -1,0 +1,14 @@
+*.slo
+*.lo
+*.o
+
+*.so
+*.dynlib
+
+*.lai
+*.la
+*.a
+
+*.~
+hCraft
+
