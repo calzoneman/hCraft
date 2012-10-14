@@ -105,7 +105,7 @@ namespace hCraft {
 		/* 
 		 * Calls the function @{f} on all players in this list.
 		 */
-		void all (std::function<void (player *)> f);
+		void all (std::function<void (player *)> f, player* except = nullptr);
 		
 		/* 
 		 * Iterates through the list, and passes all players to the specified

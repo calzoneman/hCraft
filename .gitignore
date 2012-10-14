@@ -11,4 +11,6 @@
 
 *~
 hCraft
+build/
+.sconsign.dblite
 

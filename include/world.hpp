@@ -21,6 +21,9 @@
 
 #include "map.hpp"
 #include "playerlist.hpp"
+#include <thread>
+#include <queue>
+#include <mutex>
 
 
 namespace hCraft {
@@ -29,18 +32,57 @@ namespace hCraft {
 	
 	
 	/* 
+	 * The whereabouts of a block that must be modified in the world's underlying
+	 * map instance and sent to close players.
+	 */
+	struct block_update
+	{
+		int x;
+		int y;
+		int z;
+		unsigned short id;
+		unsigned char  meta;
+		player *pl; // the player that initated the update.
+		
+		block_update (int x, int y, int z, unsigned short id, unsigned char meta,
+			player *pl)
+		{
+			this->x = x;
+			this->y = y;
+			this->z = z;
+			this->id = id;
+			this->meta = meta;
+			this->pl = pl;
+		}
+	};
+	
+	
+	/* 
 	 * Represents a world.
+	 * Wraps around a `map' instance and provides block\entity physics on-top of
+	 * it.
 	 */
 	class world
 	{
 		char name[33]; // 32 chars max
 		map *mp;
 		playerlist *players;
+		std::thread th;
+		bool should_run;
+		
+		std::queue<block_update> updates;
+		std::mutex update_lock;
 		
 	public:
 		inline const char* get_name () { return this->name; }
 		inline map& get_map () { return *this->mp; }
 		inline playerlist& get_players () { return *this->players; }
+		
+	private:
+		/* 
+		 * The function ran by the world's thread.
+		 */
+		void worker ();
 		
 	public:
 		/* 
@@ -52,6 +94,15 @@ namespace hCraft {
 		 * Class destructor.
 		 */
 		~world ();
+		
+		
+		
+		/* 
+		 * Enqueues an update that should be made to a block in the world's
+		 * underlying map instance and sent to nearby players.
+		 */
+		void queue_update (int x, int y, int z, unsigned short id,
+			unsigned char meta, player *pl = nullptr);
 	};
 }
 

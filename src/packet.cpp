@@ -813,6 +813,22 @@ namespace hCraft {
 	}
 	
 	packet*
+	packet::make_block_change (int x, unsigned char y, int z,
+		unsigned short id, unsigned char meta)
+	{
+		packet* pack = new packet (13);
+		
+		pack->put_byte (0x35);
+		pack->put_int (x);
+		pack->put_byte (y);
+		pack->put_int (z);
+		pack->put_short (id);
+		pack->put_byte (meta);
+		
+		return pack;
+	}
+	
+	packet*
 	packet::make_kick (const char *str)
 	{
 		packet *pack = new packet (3 + (std::strlen (str) * 2));

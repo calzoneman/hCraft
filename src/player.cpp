@@ -60,6 +60,7 @@ namespace hCraft {
 		this->curr_world = nullptr;
 		this->curr_chunk = chunk_pos (0, 0);
 		this->ping_waiting = false;
+		
 		this->last_ping = std::chrono::system_clock::now ();
 		
 		this->evbase = evbase;
@@ -683,6 +684,15 @@ namespace hCraft {
 	
 //----
 	
+	static bool
+	ms_passed (std::chrono::time_point<std::chrono::system_clock> pt, int ms)
+	{
+		auto now = std::chrono::system_clock::now ();
+		return ((pt + std::chrono::milliseconds (ms)) <= now);
+	}
+	
+	
+	
 	/* 
 	 * Packet handlers:
 	 */
@@ -726,6 +736,7 @@ namespace hCraft {
 			}
 		
 		char username[17];
+		/*
 		int username_len = reader.read_string (username, 16);
 		if (username_len < 2)
 			{
@@ -733,6 +744,16 @@ namespace hCraft {
 				pl->disconnect ();
 				return;
 			}
+		*/
+		{
+			static const char *names[] =
+				{ "BizarreCake", "laCour", "triddin", "H4X", "kev009" };
+			static int index = 0, count = 5;
+			const char *cur = names[index++];
+			if (index >= count)
+				index = 0;
+			std::strcpy (username, cur);
+		}
 		
 		pl->log () << "Player " << username << " has logged in from @" << pl->get_ip () << std::endl;
 		std::strcpy (pl->username, username);
@@ -898,6 +919,36 @@ namespace hCraft {
 	}
 	
 	void
+	player::handle_packet_0e (player *pl, packet_reader reader)
+	{
+		char status;
+		int x;
+		unsigned char y;
+		int z;
+		char face;
+		
+		status = reader.read_byte ();
+		x = reader.read_int ();
+		y = reader.read_byte ();
+		z = reader.read_int ();
+		face = reader.read_byte ();
+		
+		int w_width = pl->get_world ()->get_map ().get_width ();
+		int w_depth = pl->get_world ()->get_map ().get_depth ();
+		if (((w_width > 0) && ((x >= w_width) || (x < 0))) ||
+				((w_depth > 0) && ((z >= w_depth) || (z < 0))))
+			{
+				pl->send (packet::make_block_change (
+					x, y, z,
+					pl->get_world ()->get_map ().get_id (x, y, z),
+					pl->get_world ()->get_map ().get_meta (x, y, z)));
+				return;
+			}
+		
+		pl->get_world ()->queue_update (x, y, z, 0, 0, pl);
+	}
+	
+	void
 	player::handle_packet_12 (player *pl, packet_reader reader)
 	{
 		entity_pos dest = pl->get_pos ();
@@ -947,7 +998,7 @@ namespace hCraft {
 				handle_packet_00, handle_packet_xx, handle_packet_02, handle_packet_03, // 0x03
 				handle_packet_xx, handle_packet_xx, handle_packet_xx, handle_packet_xx, // 0x07
 				handle_packet_xx, handle_packet_xx, handle_packet_0a, handle_packet_0b, // 0x0B
-				handle_packet_0c, handle_packet_0d, handle_packet_xx, handle_packet_xx, // 0x0F
+				handle_packet_0c, handle_packet_0d, handle_packet_0e, handle_packet_xx, // 0x0F
 				
 				handle_packet_xx, handle_packet_xx, handle_packet_12, handle_packet_13, // 0x13
 				handle_packet_xx, handle_packet_xx, handle_packet_xx, handle_packet_xx, // 0x17

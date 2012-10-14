@@ -182,14 +182,15 @@ namespace hCraft {
 	 * Calls the function @{f} on all players in this list.
 	 */
 	void
-	playerlist::all (std::function<void (player *)> f)
+	playerlist::all (std::function<void (player *)> f, player* except)
 	{
 		std::lock_guard<std::mutex> guard {this->lock};
 		
 		for (auto itr = this->players.begin (); itr != this->players.end (); ++itr)
 			{
 				player *pl = itr->second;
-				f (pl);
+				if (pl != except)
+					f (pl);
 			}
 	}
 	

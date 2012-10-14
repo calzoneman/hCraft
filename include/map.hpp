@@ -103,6 +103,11 @@ namespace hCraft {
 		chunk* get_chunk (int x, int z);
 		
 		/* 
+		 * Returns the chunk located at the given block coordinates.
+		 */
+		chunk* get_chunk_at (int bx, int bz);
+		
+		/* 
 		 * Same as get_chunk (), but if the chunk does not exist, it will be either
 		 * loaded from a file (if such a file exists), or completely generated from
 		 * scratch.

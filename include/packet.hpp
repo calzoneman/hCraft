@@ -123,6 +123,9 @@ namespace hCraft {
 		
 		static packet* make_empty_chunk (int x, int z);
 		
+		static packet* make_block_change (int x, unsigned char y, int z,
+			unsigned short id, unsigned char meta);
+		
 		static packet* make_kick (const char *str);
 	};
 	

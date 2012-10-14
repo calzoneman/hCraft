@@ -195,42 +195,39 @@ namespace hCraft {
 		else
 			{ this->meta[half] &= 0xF0; this->meta[half] |= meta; }
 		
-		if (id != 0)
+		unsigned short lo = id & 0xFF; // the lower 8 bits of the ID.
+		unsigned short hi = id >> 8;   // the upper 4 bits of the ID (the "add").
+		unsigned short prev_lo = this->ids[index];
+		unsigned short prev_hi =
+			(this->add_count > 0)
+				? ((index & 1) ? (this->add[half] >> 4) : (this->add[half] & 0xF))
+				: 0;
+		unsigned short prev_id = (prev_hi << 8) | prev_lo;
+
+		this->ids[index] = lo;
+		if (hi != 0)
 			{
-				unsigned short lo = id & 0xFF; // the lower 8 bits of the ID.
-				unsigned short hi = id >> 8;   // the upper 4 bits of the ID (the "add").
-				unsigned short prev_lo = this->ids[index];
-				unsigned short prev_hi =
-					(this->add_count > 0)
-						? ((index & 1) ? (this->add[half] >> 4) : (this->add[half] & 0xF))
-						: 0;
-				unsigned short prev_id = (prev_hi << 8) | prev_lo;
-		
-				this->ids[index] = lo;
-				if (hi != 0)
+				if (this->add_count == 0)
 					{
-						if (this->add_count == 0)
-							{
-								this->add = new unsigned char[2048];
-								std::memset (this->add, 0x00, 2048);
-							}
-				
-						if (index & 1)
-							{ this->add[half] &= 0x0F; this->add[half] |= (hi << 4); }
-						else
-							{ this->add[half] &= 0xF0; this->add[half] |= hi; }
+						this->add = new unsigned char[2048];
+						std::memset (this->add, 0x00, 2048);
 					}
 		
-				if (prev_id && !id)
-					++ this->air_count;
-				else if (!prev_id && id)
-					-- this->air_count;
-		
-				if (prev_hi && !hi)
-					-- this->add_count;
-				else if (!prev_hi && hi)
-					++ this->add_count;
+				if (index & 1)
+					{ this->add[half] &= 0x0F; this->add[half] |= (hi << 4); }
+				else
+					{ this->add[half] &= 0xF0; this->add[half] |= hi; }
 			}
+
+		if (prev_id && !id)
+			++ this->air_count;
+		else if (!prev_id && id)
+			-- this->air_count;
+
+		if (prev_hi && !hi)
+			-- this->add_count;
+		else if (!prev_hi && hi)
+			++ this->add_count;
 	}
 	
 	

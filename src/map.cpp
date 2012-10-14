@@ -17,6 +17,7 @@
  */
 
 #include "map.hpp"
+#include "utils.hpp"
 
 
 namespace hCraft {
@@ -205,6 +206,10 @@ namespace hCraft {
 	chunk*
 	map::get_chunk (int x, int z)
 	{
+		if (((this->width > 0) && (((x * 16) >= this->width) || (x < 0))) ||
+				((this->depth > 0) && (((z * 16) >= this->depth) || (z < 0))))
+			return this->edge_chunk;
+		
 		unsigned long long key = chunk_key (x, z);
 		
 		std::lock_guard<std::mutex> guard {this->chunk_lock};
@@ -216,6 +221,15 @@ namespace hCraft {
 	}
 	
 	/* 
+	 * Returns the chunk located at the given block coordinates.
+	 */
+	chunk*
+	map::get_chunk_at (int bx, int bz)
+	{
+		return this->get_chunk (utils::div (bx, 16), utils::div (bz, 16));
+	}
+	
+	/* 
 	 * Same as get_chunk (), but if the chunk does not exist, it will be either
 	 * loaded from a file (if such a file exists), or completely generated from
 	 * scratch.
@@ -223,10 +237,6 @@ namespace hCraft {
 	chunk*
 	map::load_chunk (int x, int z)
 	{
-		if (((this->width > 0) && (((x * 16) >= this->width) || (x < 0))) ||
-				((this->depth > 0) && (((z * 16) >= this->depth) || (z < 0))))
-			return this->edge_chunk;
-		
 		chunk *ch = this->get_chunk (x, z);
 		if (ch) return ch;
 		
@@ -260,85 +270,79 @@ namespace hCraft {
 	 * Block interaction: 
 	 */
 	
-	static inline int
-	ndiv (int n, int d)
-		{ return (n >= 0) ? (n / d) : ((n / d) - 1); }
-	
-	
-	
 	void
 	map::set_id (int x, int y, int z, unsigned short id)
 	{
-		chunk *ch = this->load_chunk (ndiv (x, 16), ndiv (z, 16));
-		ch->set_id (x % 16, y, z % 16, id);
+		chunk *ch = this->load_chunk (utils::div (x, 16), utils::div (z, 16));
+		ch->set_id (utils::mod (x, 16), y, utils::mod (z, 16), id);
 	}
 	
 	unsigned short
 	map::get_id (int x, int y, int z)
 	{
-		chunk *ch = this->get_chunk (ndiv (x, 16), ndiv (z, 16));
+		chunk *ch = this->get_chunk (utils::div (x, 16), utils::div (z, 16));
 		if (!ch)
 			return 0;
-		return ch->get_id (x % 16, y, z % 16);
+		return ch->get_id (utils::mod (x, 16), y, utils::mod (z, 16));
 	}
 	
 	
 	void
 	map::set_meta (int x, int y, int z, unsigned char val)
 	{
-		chunk *ch = this->load_chunk (ndiv (x, 16), ndiv (z, 16));
-		ch->set_meta (x % 16, y, z % 16, val);
+		chunk *ch = this->load_chunk (utils::div (x, 16), utils::div (z, 16));
+		ch->set_meta (utils::mod (x, 16), y, utils::mod (z, 16), val);
 	}
 	
 	unsigned char
 	map::get_meta (int x, int y, int z)
 	{
-		chunk *ch = this->get_chunk (ndiv (x, 16), ndiv (z, 16));
+		chunk *ch = this->get_chunk (utils::div (x, 16), utils::div (z, 16));
 		if (!ch)
 			return 0;
-		return ch->get_meta (x % 16, y, z % 16);
+		return ch->get_meta (utils::mod (x, 16), y, utils::mod (z, 16));
 	}
 	
 	
 	void
 	map::set_block_light (int x, int y, int z, unsigned char val)
 	{
-		chunk *ch = this->load_chunk (ndiv (x, 16), ndiv (z, 16));
-		ch->set_block_light (x % 16, y, z % 16, val);
+		chunk *ch = this->load_chunk (utils::div (x, 16), utils::div (z, 16));
+		ch->set_block_light (utils::mod (x, 16), y, utils::mod (z, 16), val);
 	}
 	
 	unsigned char
 	map::get_block_light (int x, int y, int z)
 	{
-		chunk *ch = this->get_chunk (ndiv (x, 16), ndiv (z, 16));
+		chunk *ch = this->get_chunk (utils::div (x, 16), utils::div (z, 16));
 		if (!ch)
 			return 0;
-		return ch->get_block_light (x % 16, y, z % 16);
+		return ch->get_block_light (utils::mod (x, 16), y, utils::mod (z, 16));
 	}
 	
 	
 	void
 	map::set_sky_light (int x, int y, int z, unsigned char val)
 	{
-		chunk *ch = this->load_chunk (ndiv (x, 16), ndiv (z, 16));
-		ch->set_sky_light (x % 16, y, z % 16, val);
+		chunk *ch = this->load_chunk (utils::div (x, 16), utils::div (z, 16));
+		ch->set_sky_light (utils::mod (x, 16), y, utils::mod (z, 16), val);
 	}
 	
 	unsigned char
 	map::get_sky_light (int x, int y, int z)
 	{
-		chunk *ch = this->get_chunk (ndiv (x, 16), ndiv (z, 16));
+		chunk *ch = this->get_chunk (utils::div (x, 16), utils::div (z, 16));
 		if (!ch)
 			return 0xF;
-		return ch->get_sky_light (x % 16, y, z % 16);
+		return ch->get_sky_light (utils::mod (x, 16), y, utils::mod (z, 16));
 	}
 	
 	
 	void
 	map::set_id_and_meta (int x, int y, int z, unsigned short id, unsigned char meta)
 	{
-		chunk *ch = this->load_chunk (ndiv (x, 16), ndiv (z, 16));
-		ch->set_id_and_meta (x % 16, y, z % 16, id, meta);
+		chunk *ch = this->load_chunk (utils::div (x, 16), utils::div (z, 16));
+		ch->set_id_and_meta (utils::mod (x, 16), y, utils::mod (z, 16), id, meta);
 	}
 }
 

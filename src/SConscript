@@ -19,6 +19,7 @@ hCraft_sources = Split("""
 		threadpool.cpp
 		mapprovider.cpp
 		hwprovider.cpp
+		utils.cpp
 		
 		commands/command.cpp
 		commands/help.cpp
