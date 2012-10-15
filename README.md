@@ -1,6 +1,8 @@
 hCraft
 ======
 
+![hCraft](https://raw.github.com/BizarreCake/hCraft/master/etc/hCraft-small.png)
+
 What is hCraft?
 ---------------
 
