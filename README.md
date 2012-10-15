@@ -1,8 +1,6 @@
 hCraft
 ======
 
-![hCraft Logo](https://raw.github.com/BizarreCake/hCraft/master/etc/Bwuaaahh.png)
-
 What is hCraft?
 ---------------
 
