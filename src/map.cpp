@@ -42,6 +42,7 @@ namespace hCraft {
 		this->depth = 0;
 		
 		this->prov = provider;
+		this->edge_chunk = nullptr;
 	}
 	
 	/* 
@@ -155,7 +156,6 @@ namespace hCraft {
 	map::prepare_spawn (int radius)
 	{
 		this->load_grid (chunk_pos (0, 0), radius);
-		
 		block_pos best {0, 257, 0};
 		
 		int cx, cz, x, z;
@@ -252,14 +252,12 @@ namespace hCraft {
 				ch->relight ();
 				return ch;
 			}
-		this->prov->close ();
 		
+		this->prov->close ();
 		this->put_chunk (x, z, ch);
 		this->gen->generate (*this, ch, x, z);
-		
 		ch->recalc_heightmap ();
 		ch->relight ();
-		
 		return ch;
 	}
 	

@@ -39,6 +39,10 @@ namespace hCraft {
 			initialized (other.initialized)
 		{ }
 	
+	server::initializer::initializer (const initializer &other)
+		: init (other.init), destroy (other.destroy), initialized (other.initialized)
+		{ }
+	
 	
 	
 	// constructor.
@@ -69,6 +73,10 @@ namespace hCraft {
 		this->inits.push_back (initializer (
 			std::bind (std::mem_fn (&hCraft::server::init_core), this),
 			std::bind (std::mem_fn (&hCraft::server::destroy_core), this)));
+		
+		this->inits.push_back (initializer (
+			std::bind (std::mem_fn (&hCraft::server::init_ranks), this),
+			std::bind (std::mem_fn (&hCraft::server::destroy_ranks), this)));
 		
 		this->inits.push_back (initializer (
 			std::bind (std::mem_fn (&hCraft::server::init_commands), this),
@@ -664,6 +672,62 @@ namespace hCraft {
 		
 		this->players->clear (true);
 		delete this->players;
+	}
+	
+	
+	
+//---
+	// init_ranks (), destroy_ranks ():
+	/* 
+	 * Reads reads and their associated permissions from "ranks.yaml".
+	 * If the file does not exist, it will get created with default settings.
+	 */
+	
+	static void
+	write_ranks (std::ostream& strm)
+	{
+		YAML::Emitter out;
+		
+		out << YAML::BeginMap;
+		out << YAML::Key << "ranks";
+		out << YAML::Value;
+		
+		out << YAML::BeginMap;
+		
+		out << YAML::Key << "guest";
+		out << YAML::Value;
+		out << YAML::BeginMap;
+		out << YAML::Key << "color" << YAML::Value << "7";
+		out << YAML::EndMap;
+		
+		out << YAML::EndMap;
+		out << YAML::EndMap;
+		
+		strm << out.c_str () << std::flush;
+	}
+	
+	
+	
+	void
+	server::init_ranks ()
+	{
+		std::ifstream strm ("ranks.yaml");
+		if (strm.is_open ())
+			{
+				strm.close ();
+				return;
+			}
+		
+		
+		//std::ofstream ostrm ("ranks.yaml");
+		//write_ranks (ostrm);
+		//ostrm.close ();
+	}
+	
+	void
+	server::destroy_ranks ()
+	{
+		
 	}
 	
 	

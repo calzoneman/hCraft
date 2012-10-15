@@ -1010,6 +1010,7 @@ namespace hCraft {
 					subchunk *sub = ch->create_sub (i, false);
 					sub->air_count = 4096;
 					sub->add_count = 0;
+					sub->add = nullptr;
 				}
 		
 		for (i = 0; i < 16; ++i)
@@ -1025,12 +1026,14 @@ namespace hCraft {
 			if (primary_bitmap & (1 << i))
 				{ std::memcpy (ch->get_sub (i)->slight, data + n, 2048); n += 2048; }
 		for (i = 0; i < 16; ++i)
-			if (add_bitmap & (1 << i))
-				{
-					subchunk *sub = ch->get_sub (i);
-					sub->add = new unsigned char[2048];
-					std::memcpy (ch->get_sub (i)->add, data + n, 2048); n += 2048;
-				}
+			{
+				subchunk *sub = ch->get_sub (i);
+				if (add_bitmap & (1 << i))
+					{
+						sub->add = new unsigned char[2048];
+						std::memcpy (ch->get_sub (i)->add, data + n, 2048); n += 2048;
+					}
+			}
 		
 		// biomes
 		std::memcpy (ch->get_biome_array (), data + n, 256);
@@ -1046,11 +1049,11 @@ namespace hCraft {
 							{
 								if (sub->ids[j] != 0)
 									-- sub->air_count;
-								if (sub->add && sub->add[j] != 0)
+								if (sub->add && sub->add[j >> 1] != 0)
 									{
-										if (sub->add[j] >> 4)
+										if (sub->add[j >> 1] >> 4)
 											++ sub->add_count;
-										if (sub->add[j] & 0xF)
+										if (sub->add[j >> 1] & 0xF)
 											++ sub->add_count;
 									}
 							}
@@ -1090,7 +1093,6 @@ namespace hCraft {
 		
 		fill_chunk (ch, data);
 		delete[] data;
-		
 		return true;
 	}
 }

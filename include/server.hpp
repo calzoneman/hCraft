@@ -95,7 +95,7 @@ namespace hCraft {
 			// move constructor.
 			initializer (initializer&& other);
 			
-			initializer (const initializer &) = delete;
+			initializer (const initializer &);
 		};
 		
 		
@@ -165,6 +165,13 @@ namespace hCraft {
 		 */
 		void init_core ();
 		void destroy_core ();
+		
+		/* 
+		 * Reads reads and their associated permissions from "ranks.yaml".
+		 * If the file does not exist, it will get created with default settings.
+		 */
+		void init_ranks ();
+		void destroy_ranks ();
 		
 		/* 
 		 * Loads up commands.
