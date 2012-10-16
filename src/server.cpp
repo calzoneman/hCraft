@@ -71,6 +71,10 @@ namespace hCraft {
 			std::bind (std::mem_fn (&hCraft::server::destroy_config), this)));
 		
 		this->inits.push_back (initializer (
+			std::bind (std::mem_fn (&hCraft::server::init_sql), this),
+			std::bind (std::mem_fn (&hCraft::server::destroy_sql), this)));
+		
+		this->inits.push_back (initializer (
 			std::bind (std::mem_fn (&hCraft::server::init_core), this),
 			std::bind (std::mem_fn (&hCraft::server::destroy_core), this)));
 		
@@ -634,6 +638,32 @@ namespace hCraft {
 	
 	
 	
+//---
+	// init_sql (), destroy_sql ():
+	/* 
+	 * Loads the server's database.
+	 */
+	void
+	server::init_sql ()
+	{
+		int err;
+		
+		log () << "Opening SQL database (at \"server-database.db\")" << std::endl;
+		err = sqlite3_open ("server-database.db", &this->db);
+		if (err != SQLITE_OK)
+			{
+				sqlite3_close (this->db);
+				throw server_error (sqlite3_errmsg (this->db));
+			}
+	}
+	
+	void
+	server::destroy_sql ()
+	{
+		sqlite3_close (this->db);
+	}
+	
+	
 	
 //---
 	// init_core (), destroy_core ():
@@ -683,45 +713,10 @@ namespace hCraft {
 	 * If the file does not exist, it will get created with default settings.
 	 */
 	
-	static void
-	write_ranks (std::ostream& strm)
-	{
-		YAML::Emitter out;
-		
-		out << YAML::BeginMap;
-		out << YAML::Key << "ranks";
-		out << YAML::Value;
-		
-		out << YAML::BeginMap;
-		
-		out << YAML::Key << "guest";
-		out << YAML::Value;
-		out << YAML::BeginMap;
-		out << YAML::Key << "color" << YAML::Value << "7";
-		out << YAML::EndMap;
-		
-		out << YAML::EndMap;
-		out << YAML::EndMap;
-		
-		strm << out.c_str () << std::flush;
-	}
-	
-	
-	
 	void
 	server::init_ranks ()
 	{
-		std::ifstream strm ("ranks.yaml");
-		if (strm.is_open ())
-			{
-				strm.close ();
-				return;
-			}
 		
-		
-		//std::ofstream ostrm ("ranks.yaml");
-		//write_ranks (ostrm);
-		//ostrm.close ();
 	}
 	
 	void

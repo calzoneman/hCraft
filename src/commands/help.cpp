@@ -83,9 +83,17 @@ namespace hCraft {
 			return examples;
 		}
 		
-		const char*
+		const char**
 		c_help::get_permissions ()
-			{ return "command.info.help"; }
+		{
+			static const char *perms[] =
+				{
+					"command.info.help",
+					nullptr,
+				};
+			
+			return perms;
+		}
 		
 		
 		

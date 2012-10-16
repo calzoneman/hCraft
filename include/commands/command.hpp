@@ -149,10 +149,9 @@ namespace hCraft {
 		virtual const char** get_examples () = 0;
 		
 		/* 
-		 * Returns the permissions string (in the form of:
-		 * <node1>.<node2>. ... .<nodeN>).
+		 * Returns a null terminated array of permission nodes.
 		 */
-		virtual const char* get_permissions () = 0;
+		virtual const char** get_permissions () = 0;
 		
 	//----
 		

@@ -82,9 +82,17 @@ namespace hCraft {
 			return examples;
 		}
 		
-		const char*
+		const char**
 		c_ping::get_permissions ()
-			{ return "command.misc.ping"; }
+		{
+			static const char *perms[] =
+				{
+					"command.misc.ping",
+					nullptr,
+				};
+			
+			return perms;
+		}
 		
 		
 		

@@ -39,7 +39,7 @@ namespace hCraft {
 			virtual const char* get_usage (int n);
 			virtual const char* get_usage_help (int n);
 			virtual const char** get_examples ();
-			virtual const char* get_permissions ();
+			virtual const char** get_permissions ();
 			virtual void execute (player *pl, command_reader& reader);
 		};
 	}

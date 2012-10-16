@@ -20,6 +20,8 @@ hCraft_sources = Split("""
 		mapprovider.cpp
 		hwprovider.cpp
 		utils.cpp
+		rank.cpp
+		permissions.cpp
 		
 		commands/command.cpp
 		commands/help.cpp
@@ -33,6 +35,7 @@ hCraft_libs = Split("""
 		m
 		yaml-cpp
 		z
+		sqlite3
 		""")
 
 Import('env')

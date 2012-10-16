@@ -76,9 +76,17 @@ namespace hCraft {
 			return examples;
 		}
 		
-		const char*
+		const char**
 		c_me::get_permissions ()
-			{ return "command.chat.me"; }
+		{
+			static const char *perms[] =
+				{
+					"command.chat.me",
+					nullptr,
+				};
+			
+			return perms;
+		}
 		
 		
 		

@@ -27,7 +27,9 @@
 #include "world.hpp"
 #include "threadpool.hpp"
 #include "commands/command.hpp"
+#include "permissions.hpp"
 
+#include <sqlite3.h>
 #include <unordered_map>
 #include <vector>
 #include <functional>
@@ -124,6 +126,8 @@ namespace hCraft {
 		logger& log;
 		server_config cfg;
 		
+		sqlite3 *db;
+		
 		std::vector<initializer> inits; // <init, destroy> pairs
 		bool running;
 		
@@ -159,6 +163,12 @@ namespace hCraft {
 		 */
 		void init_config ();
 		void destroy_config ();
+		
+		/* 
+		 * Loads the server's database.
+		 */
+		void init_sql ();
+		void destroy_sql ();
 		
 		/* 
 		 * Initializes various data structures and variables needed by the server.
@@ -239,6 +249,7 @@ namespace hCraft {
 		inline thread_pool& get_thread_pool () { return this->tpool; }
 		inline world* get_main_world () { return this->main_world; }
 		inline command_list& get_commands () { return *this->commands; }
+		inline sqlite3* sql () { return this->db; }
 		
 	public:
 		/* 
