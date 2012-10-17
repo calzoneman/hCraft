@@ -19,6 +19,8 @@
 #include "permissions.hpp"
 #include <cstring>
 
+#include <iostream> // DEBUG
+
 
 namespace hCraft {
 	
@@ -27,8 +29,6 @@ namespace hCraft {
 	 */
 	permission_manager::permission_manager ()
 	{
-		this->node_ids[0] = this->node_ids[1] = this->node_ids[2] =
-			this->node_ids[3] = 2;
 	}
 	
 	
@@ -57,9 +57,11 @@ namespace hCraft {
 		permission result {};
 		
 		int depth = 0;
-		std::unordered_map<std::string, int>* curr_map = this->node_maps;
-		while (*ptr != '\0' && depth < 4)
+		for ( ; *ptr != '\0' && depth < 4; ++ depth)
 			{
+				std::unordered_map<std::string, int>& id_map = this->id_maps[depth];
+				std::vector<std::string>& name_map = this->name_maps[depth];
+				
 				const char *dot = std::strchr (ptr, '.');
 				if (dot)
 					{
@@ -84,22 +86,26 @@ namespace hCraft {
 				int wc = get_wildcard (tmp);
 				if (wc != -1)
 					{
-						result.nodes[depth++] = wc;
+						result.nodes[depth] = wc;
 						continue;
 					}
 				
-				auto itr = curr_map->find (tmp);
-				if (itr != curr_map->end ())
+				auto itr = id_map.find (tmp);
+				if (itr != id_map.end ())
 					{
-						result.nodes[depth++] = itr->second;
+						result.nodes[depth] = itr->second;
 						continue;
 					}
 				
 				// register new node;
-				int id = this->node_ids[depth]++;
-				curr_map->operator[] (tmp) = id;
-				result.nodes[depth++] = id;
+				int id = name_map.size () + PERM_ID_START;
+				name_map.push_back (tmp);
+				id_map[tmp] = id;
+				result.nodes[depth] = id;
 			}
+		
+		for (; depth < 4; ++depth)
+			result.nodes[depth] = 0;
 		
 		return result;
 	}
@@ -118,9 +124,11 @@ namespace hCraft {
 		permission result {};
 		
 		int depth = 0;
-		std::unordered_map<std::string, int>* curr_map = this->node_maps;
-		while (*ptr != '\0' && depth < 4)
+		for ( ; *ptr != '\0' && depth < 4; ++ depth)
 			{
+				std::unordered_map<std::string, int>& id_map = this->id_maps[depth];
+				std::vector<std::string>& name_map = this->name_maps[depth];
+				
 				const char *dot = std::strchr (ptr, '.');
 				if (dot)
 					{
@@ -145,21 +153,55 @@ namespace hCraft {
 				int wc = get_wildcard (tmp);
 				if (wc != -1)
 					{
-						result.nodes[depth++] = wc;
+						result.nodes[depth] = wc;
 						continue;
 					}
 				
-				auto itr = curr_map->find (tmp);
-				if (itr == curr_map->end ())
+				auto itr = id_map.find (tmp);
+				if (itr == id_map.end ())
 					{
 						result.nodes[0] = -1;
-						break;
+						return result;
 					}
 				
-				result.nodes[depth++] = itr->second;
+				result.nodes[depth] = itr->second;
 			}
 		
+		for (; depth < 4; ++depth)
+			result.nodes[depth] = 0;
+		
 		return result;
+	}
+	
+	
+	
+	/* 
+	 * Returns a human-readable representation of the given permission node.
+	 */
+	std::string
+	permission_manager::to_string (permission perm)
+	{
+		std::string str;
+		for (int i = 0; i < 4; ++i)
+			{
+				int node = perm.nodes[i];
+				if (node == 0)
+					break;
+				
+				if (i > 0)
+					str.push_back ('.');
+				
+				if (node == PERM_FLAG_ALL)
+					str.push_back ('*');
+				else if (node == PERM_FLAG_NONE)
+					str.push_back ('-');
+				else
+					{
+						str.append (this->name_maps[i][node - PERM_ID_START]);
+					}
+			}
+		
+		return str;
 	}
 }
 

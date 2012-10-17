@@ -23,6 +23,7 @@
 #include <yaml-cpp/yaml.h>
 #include <arpa/inet.h>
 #include <sys/stat.h>
+#include <algorithm>
 
 
 namespace hCraft {
@@ -62,7 +63,7 @@ namespace hCraft {
 	 * Constructs a new server.
 	 */
 	server::server (logger &log)
-		: log (log)
+		: log (log), perms (), groups (perms)
 	{
 		// add <init, destory> pairs
 		
@@ -79,12 +80,12 @@ namespace hCraft {
 			std::bind (std::mem_fn (&hCraft::server::destroy_core), this)));
 		
 		this->inits.push_back (initializer (
-			std::bind (std::mem_fn (&hCraft::server::init_ranks), this),
-			std::bind (std::mem_fn (&hCraft::server::destroy_ranks), this)));
-		
-		this->inits.push_back (initializer (
 			std::bind (std::mem_fn (&hCraft::server::init_commands), this),
 			std::bind (std::mem_fn (&hCraft::server::destroy_commands), this)));
+		
+		this->inits.push_back (initializer (
+			std::bind (std::mem_fn (&hCraft::server::init_ranks), this),
+			std::bind (std::mem_fn (&hCraft::server::destroy_ranks), this)));
 		
 		this->inits.push_back (initializer (
 			std::bind (std::mem_fn (&hCraft::server::init_worlds), this),
@@ -260,6 +261,9 @@ namespace hCraft {
 								init.initialized = false;
 							}
 					}
+				
+				// wrap the error in a server_error object.
+				throw server_error (ex.what ());
 			}
 		
 		this->running = true;
@@ -410,8 +414,8 @@ namespace hCraft {
 //----
 	// init_config (), destroy_config ():
 	/* 
-	 * Loads settings from the configuration file ("server-config.yaml",
-	 * in YAML form) into the server's `cfg' structure. If "server-config.yaml"
+	 * Loads settings from the configuration file ("config.yaml",
+	 * in YAML form) into the server's `cfg' structure. If "config.yaml"
 	 * does not exist, it will get created with default settings.
 	 */
 	
@@ -611,9 +615,9 @@ namespace hCraft {
 	{
 		default_config (this->cfg);
 		
-		log () << "Loading configuration from \"server-config.yaml\"" << std::endl;
+		log () << "Loading configuration from \"config.yaml\"" << std::endl;
 		
-		std::ifstream strm ("server-config.yaml");
+		std::ifstream strm ("config.yaml");
 		if (strm.is_open ())
 			{
 				read_config (this->log, strm, this->cfg);
@@ -622,7 +626,7 @@ namespace hCraft {
 			}
 		
 		log () << "Configuration file does not exist, creating one with default settings." << std::endl;
-		std::ofstream ostrm ("server-config.yaml");
+		std::ofstream ostrm ("config.yaml");
 		if (!ostrm.is_open ())
 			{
 				log (LT_ERROR) << "Failed to open \"server.cfg\" for writing." << std::endl;
@@ -647,20 +651,24 @@ namespace hCraft {
 	server::init_sql ()
 	{
 		int err;
+		char* errmsg;
 		
-		log () << "Opening SQL database (at \"server-database.db\")" << std::endl;
-		err = sqlite3_open ("server-database.db", &this->db);
-		if (err != SQLITE_OK)
-			{
-				sqlite3_close (this->db);
-				throw server_error (sqlite3_errmsg (this->db));
-			}
+		log () << "Opening SQL database (at \"database.db\")" << std::endl;
+		this->db.open ("database.db");
+		
+		// 
+		// Create tables.
+		// 
+		this->db.execute (
+			"CREATE TABLE IF NOT EXISTS `players` (`id` INTEGER PRIMARY KEY "
+			"AUTOINCREMENT, `name` VARCHAR (16), `groups` VARCHAR(255));"
+			);
 	}
 	
 	void
 	server::destroy_sql ()
 	{
-		sqlite3_close (this->db);
+		this->db.close ();
 	}
 	
 	
@@ -707,46 +715,344 @@ namespace hCraft {
 	
 	
 //---
-	// init_ranks (), destroy_ranks ():
-	/* 
-	 * Reads reads and their associated permissions from "ranks.yaml".
-	 * If the file does not exist, it will get created with default settings.
-	 */
-	
-	void
-	server::init_ranks ()
-	{
-		
-	}
-	
-	void
-	server::destroy_ranks ()
-	{
-		
-	}
-	
-	
-	
-//---
 	// init_commands (), destroy_commands ():
 	/* 
 	 * Loads up commands.
 	 */
+	
+	static void _add_command (permission_manager& perm_man, command_list *dest,
+		const char *name)
+	{
+		command *cmd = command::create (name);
+		if (cmd)
+			{
+				dest->add (cmd);
+				
+				// register permissions
+				const char **perms = cmd->get_permissions ();
+				while (*perms != nullptr)
+					perm_man.add (*perms++);
+			}
+	}
 	
 	void
 	server::init_commands ()
 	{
 		this->commands = new command_list ();
 		
-		this->commands->add (command::create ("help"));
-		this->commands->add (command::create ("me"));
-		this->commands->add (command::create ("ping"));
+		_add_command (this->perms, this->commands, "help");
+		_add_command (this->perms, this->commands, "me");
+		_add_command (this->perms, this->commands, "ping");
 	}
 	
 	void
 	server::destroy_commands ()
 	{
 		delete this->commands;
+	}
+	
+	
+	
+//---
+	// init_ranks (), destroy_ranks ():
+	/* 
+	 * Reads reads and their associated permissions from "ranks.yaml".
+	 * If the file does not exist, it will get created with default settings.
+	 */
+	
+	static void
+	create_default_ranks (group_manager& groups)
+	{
+		group* grp_guest = groups.add (1, "guest");
+		grp_guest->set_color ('7');
+		grp_guest->add ("command.info.help");
+		
+		group* grp_member = groups.add (2, "member");
+		grp_member->set_color ('a');
+		grp_member->inherit (grp_guest);
+		grp_member->add ("command.chat.me");
+		
+		group* grp_builder = groups.add (3, "builder");
+		grp_builder->set_color ('2');
+		grp_builder->inherit (grp_member);
+		
+		group* grp_designer = groups.add (4, "designer");
+		grp_designer->set_color ('b');
+		grp_designer->inherit (grp_builder);
+		
+		group* grp_architect = groups.add (5, "architect");
+		grp_architect->set_color ('3');
+		grp_architect->inherit (grp_designer);
+		
+		group* grp_moderator = groups.add (6, "moderator");
+		grp_moderator->set_color ('c');
+		grp_moderator->inherit (grp_designer);
+		grp_moderator->add ("command.misc.ping");
+		
+		group* grp_admin = groups.add (7, "admin");
+		grp_admin->set_color ('4');
+		grp_admin->inherit (grp_architect);
+		grp_admin->inherit (grp_moderator);
+		
+		group* grp_executive = groups.add (8, "executive");
+		grp_executive->set_color ('e');
+		grp_executive->inherit (grp_admin);
+		
+		group* grp_owner = groups.add (9, "owner");
+		grp_owner->set_color ('6');
+		grp_owner->add ("*");
+	}
+	
+	static void
+	write_ranks (std::ostream& strm, group_manager& groups)
+	{
+		YAML::Emitter emit;
+		
+		std::vector<group *> sorted_groups;
+		for (auto itr = groups.begin (); itr != groups.end (); ++itr)
+			sorted_groups.push_back (itr->second);
+		std::sort (sorted_groups.begin (), sorted_groups.end (),
+			[] (const group* a, const group* b) -> bool
+				{ return (*a) < (*b); });
+		
+		emit << YAML::BeginMap;
+		emit << YAML::Key << "groups";
+		emit << YAML::Value << YAML::BeginMap;
+		
+		for (group* grp : sorted_groups)
+			{
+				emit << YAML::Key << grp->get_name ();
+				emit << YAML::Value << YAML::BeginMap;
+				
+				if (grp->get_parents ().size () > 0)
+					{
+						emit << YAML::Key << "inheritance"
+							   << YAML::Value << YAML::BeginSeq;
+						for (group *parent : grp->get_parents ())
+							emit << parent->get_name ();
+						emit << YAML::EndSeq;
+					}
+				
+				emit << YAML::Key << "power" << YAML::Value << grp->get_power ();
+				emit << YAML::Key << "color" << YAML::Value << grp->get_color ();
+				emit << YAML::Key << "prefix" << YAML::Value << grp->get_prefix ();
+				emit << YAML::Key << "suffix" << YAML::Value << grp->get_suffix ();
+				emit << YAML::Key << "can-chat" << YAML::Value << grp->can_chat ();
+				emit << YAML::Key << "can-build" << YAML::Value << grp->can_build ();
+				emit << YAML::Key << "can-move" << YAML::Value << grp->can_move ();
+				
+				emit << YAML::Key << "permissions";
+				emit << YAML::Value << YAML::BeginSeq;
+				for (permission perm : grp->get_perms ())
+					{
+						emit << groups.get_permission_manager ().to_string (perm);
+					}
+				emit << YAML::EndSeq;
+				
+				emit << YAML::EndMap;
+			}
+		
+		emit << YAML::EndMap << YAML::EndMap;
+		
+		strm << emit.c_str () << std::flush;
+	}
+	
+	
+	
+	using group_inheritance_map
+		= std::unordered_map<std::string, std::vector<std::string>>;
+	
+	static void
+	_ranks_read_group (logger& log, const YAML::Node &group_node,
+		const std::string& group_name, group_manager& groups,
+		group_inheritance_map& ihmap)
+	{
+		const YAML::Node *node;
+		
+		int grp_power;
+		char grp_color;
+		std::string grp_prefix;
+		std::string grp_suffix;
+		bool grp_can_build;
+		bool grp_can_move;
+		bool grp_can_chat;
+		std::vector<std::string> perms;
+		
+		// inheritance
+		node = group_node.FindValue ("inheritance");
+		if (node && node->Type () == YAML::NodeType::Sequence)
+			{
+				std::string parent;
+				for (int i = 0; i < node->size (); ++i)
+					{
+						(*node)[i] >> parent;
+						
+						auto itr = ihmap.find (group_name);
+						std::vector<std::string>* seq;
+						if (itr == ihmap.end ())
+							{
+								ihmap[group_name] = std::vector<std::string> ();
+								seq = &ihmap[group_name];
+							}
+						else
+							seq = &itr->second;
+						
+						seq->push_back (std::move (parent));
+					}
+			}
+		
+		// power
+		node = group_node.FindValue ("power");
+		if (!node)
+			throw server_error ("in \"ranks.yaml\": group \"power\" field not found.");
+		*node >> grp_power;
+		
+		// color
+		node = group_node.FindValue ("color");
+		if (!node)
+			grp_color = 'f';
+		else
+			*node >> grp_color;
+		
+		// prefix
+		node = group_node.FindValue ("prefix");
+		if (node)
+			{
+				*node >> grp_prefix;
+				if (grp_prefix.size () > 32)
+					grp_prefix.resize (32);
+			}
+		
+		// suffix
+		node = group_node.FindValue ("suffix");
+		if (node)
+			{
+				*node >> grp_suffix;
+				if (grp_suffix.size () > 32)
+					grp_suffix.resize (32);
+			}
+		
+		// can-build
+		node = group_node.FindValue ("can-build");
+		if (node)
+			*node >> grp_can_build;
+		else
+			grp_can_build = true;
+		
+		// can-move
+		node = group_node.FindValue ("can-move");
+		if (node)
+			*node >> grp_can_move;
+		else
+			grp_can_move = true;
+		
+		// can-chat
+		node = group_node.FindValue ("can-chat");
+		if (node)
+			*node >> grp_can_chat;
+		else
+			grp_can_chat = true;
+		
+		// permissions
+		node = group_node.FindValue ("permissions");
+		if (node && node->Type () == YAML::NodeType::Sequence)
+			{
+				std::string perm;
+				for (int i = 0; i < node->size (); ++i)
+					{
+						(*node)[i] >> perm;
+						perms.push_back (std::move (perm));
+					}
+			}
+		
+		// create the group and add it to the list.
+		group *grp = groups.add (grp_power, group_name.c_str ());
+		grp->set_color (grp_color);
+		grp->set_prefix (grp_prefix.c_str ());
+		grp->set_suffix (grp_suffix.c_str ());
+		grp->can_build (grp_can_build);
+		grp->can_move (grp_can_move);
+		grp->can_chat (grp_can_chat);
+		for (auto& perm : perms)
+			grp->add (perm.c_str ());
+	}
+	
+	static void
+	_ranks_read_groups_map (logger& log, const YAML::Node *groups_map,
+		group_manager& groups)
+	{
+		group_inheritance_map ihmap;
+		for (auto itr = groups_map->begin (); itr != groups_map->end (); ++itr)
+			{
+				std::string group_name;
+				itr.first () >> group_name;
+				_ranks_read_group (log, itr.second (), group_name, groups, ihmap);
+			}
+		
+		// resolve inheritance
+		for (auto itr = ihmap.begin (); itr != ihmap.end (); ++itr)
+			{
+				std::string name = itr->first;
+				std::vector<std::string>& parents = itr->second;
+				
+				group *child = groups.find (name.c_str ());
+				for (auto& parent : parents)
+					{
+						group *grp = groups.find (parent.c_str ());
+						if (grp)
+							{
+								child->inherit (grp);
+							}
+					}
+			}
+	}
+	
+	static void
+	read_ranks (logger& log, std::istream& strm, group_manager& groups)
+	{
+		YAML::Parser parser (strm);
+		
+		YAML::Node doc;
+		if (!parser.GetNextDocument (doc))
+			return;
+		
+		const YAML::Node *groups_map = doc.FindValue ("groups");
+		if (groups_map && groups_map->Type () == YAML::NodeType::Map)
+			_ranks_read_groups_map (log, groups_map, groups);
+	}
+	
+	
+	
+	void
+	server::init_ranks ()
+	{
+		std::ifstream istrm ("ranks.yaml");
+		if (istrm)
+			{
+				log () << "Loading ranks from \"ranks.yaml\"" << std::endl;
+				read_ranks (this->log, istrm, this->groups);
+				log (LT_INFO) << " - Loaded " << this->groups.size () << " groups." << std::endl;
+				istrm.close ();
+				return;
+			}
+		
+		create_default_ranks (this->groups);
+		
+		log () << "\"ranks.yaml\" does not exist... Instantiating one with default settings.";
+		std::ofstream ostrm ("ranks.yaml");
+		if (!ostrm)
+			{
+				log (LT_ERROR) << "Failed to open \"ranks.yaml\" for writing." << std::endl;
+				return;
+			}
+		
+		write_ranks (ostrm, this->groups);
+	}
+	
+	void
+	server::destroy_ranks ()
+	{
+		this->groups.clear ();
 	}
 	
 	

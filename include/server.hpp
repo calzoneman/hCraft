@@ -28,6 +28,8 @@
 #include "threadpool.hpp"
 #include "commands/command.hpp"
 #include "permissions.hpp"
+#include "rank.hpp"
+#include "sql.hpp"
 
 #include <sqlite3.h>
 #include <unordered_map>
@@ -126,7 +128,9 @@ namespace hCraft {
 		logger& log;
 		server_config cfg;
 		
-		sqlite3 *db;
+		sql::database db;
+		permission_manager perms;
+		group_manager groups;
 		
 		std::vector<initializer> inits; // <init, destroy> pairs
 		bool running;
@@ -157,8 +161,8 @@ namespace hCraft {
 		// <init, destroy> functions:
 		
 		/* 
-		 * Loads settings from the configuration file ("server-config.yaml",
-		 * in YAML form) into the server's `cfg' structure. If "server-config.yaml"
+		 * Loads settings from the configuration file ("config.yaml",
+		 * in YAML form) into the server's `cfg' structure. If "config.yaml"
 		 * does not exist, it will get created with default settings.
 		 */
 		void init_config ();
@@ -177,17 +181,17 @@ namespace hCraft {
 		void destroy_core ();
 		
 		/* 
+		 * Loads up commands.
+		 */
+		void init_commands ();
+		void destroy_commands ();
+		
+		/* 
 		 * Reads reads and their associated permissions from "ranks.yaml".
 		 * If the file does not exist, it will get created with default settings.
 		 */
 		void init_ranks ();
 		void destroy_ranks ();
-		
-		/* 
-		 * Loads up commands.
-		 */
-		void init_commands ();
-		void destroy_commands ();
 		
 		/* 
 		 * Loads up and initializes worlds.
@@ -249,7 +253,7 @@ namespace hCraft {
 		inline thread_pool& get_thread_pool () { return this->tpool; }
 		inline world* get_main_world () { return this->main_world; }
 		inline command_list& get_commands () { return *this->commands; }
-		inline sqlite3* sql () { return this->db; }
+		inline sql::database& sql () { return this->db; }
 		
 	public:
 		/* 

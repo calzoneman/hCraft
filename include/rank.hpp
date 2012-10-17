@@ -21,6 +21,7 @@
 
 #include "permissions.hpp"
 #include <unordered_set>
+#include <unordered_map>
 #include <vector>
 
 
@@ -31,6 +32,7 @@ namespace hCraft {
 	 */
 	class group
 	{
+		int  id;         // unique id
 		int  power;      // groups are sorted using this field (higher power = higher-ranked group).
 		char name[25];   // 24 chars max
 		char col;        // name color.
@@ -43,12 +45,19 @@ namespace hCraft {
 		
 		permission_manager& perm_man;
 		std::unordered_set<permission> perms;
+		std::vector<group *> parents;
+		
+	public:
+		inline std::unordered_set<permission>& get_perms ()
+			{ return this->perms; }
+		inline const std::vector<group *>& get_parents () const
+			{ return this->parents; }
 		
 	public:
 		/* 
 		 * Class constructor.
 		 */
-		group (permission_manager& perm_man, int power, const char *name);
+		group (permission_manager& perm_man, int id, int power, const char *name);
 		
 		
 		/* 
@@ -63,18 +72,18 @@ namespace hCraft {
 		 */
 		void add (const char **perms);
 		
-		/* 
-		 * Copies and inserts all permissions from the specified group into this
-		 * one.
-		 */
-		void add (const group& other);
-		
 		
 		/* 
 		 * Checks whether this group has the given permission node.
 		 */
 		bool has (permission perm);
 		bool has (const char *str);
+		
+		
+		/* 
+		 * Inherits all permissions from the specified group.
+		 */
+		void inherit (group *grp);
 		
 		
 		/* 
@@ -99,15 +108,89 @@ namespace hCraft {
 		inline void can_build (bool val) { this->build = val; }
 		inline bool can_move () const { return this->move; }
 		inline void can_move (bool val) { this->move = val; }
+		
+	//----
+		
+		inline bool
+		operator< (const group& other) const
+			{ return this->power < other.power; }
+		
+		inline bool
+		operator> (const group& other) const
+			{ return this->power > other.power; }
+		
+		inline bool
+		operator== (const group& other) const
+			{ return this->id == other.id; }
+		
+		inline bool
+		operator!= (const group& other) const
+			{ return this->id != other.id; }
 	};
 	
 	
 	/* 
-	 * A collection of groups.
+	 * 
 	 */
 	class rank
 	{
 		std::vector<group *> groups;
+	};
+	
+	
+	/* 
+	 * Manages a collection of groups.
+	 */
+	class group_manager
+	{
+		std::unordered_map<std::string, group *> groups;
+		permission_manager& perm_man;
+		int id_counter;
+		
+	public:
+		inline std::unordered_map<std::string, group *>::iterator
+		begin()
+			{ return this->groups.begin (); }
+		
+		inline std::unordered_map<std::string, group *>::iterator
+		end()
+			{ return this->groups.end (); }
+		
+		inline int size () const { return this->groups.size (); }
+		
+		
+		inline permission_manager&
+		get_permission_manager ()
+			{ return this->perm_man; }
+		
+	public:
+		/* 
+		 * Class constructor.
+		 */
+		group_manager (permission_manager& perm_man);
+		
+		/* 
+		 * Class destructor.
+		 */
+		~group_manager ();
+		
+		
+		
+		/* 
+		 * Creates and inserts a new group into the given
+		 */
+		group* add (int power, const char *name);
+		
+		/* 
+		 * Searches for the group that has the specified name (case-sensitive).
+		 */
+		group* find (const char *name);
+		
+		
+		/* 
+		 * Removes all groups from this manager.
+		 */
+		void clear ();
 	};
 }
 

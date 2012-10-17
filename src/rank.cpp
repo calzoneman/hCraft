@@ -25,9 +25,10 @@ namespace hCraft {
 	/* 
 	 * Class constructor.
 	 */
-	group::group (permission_manager& perm_man, int power, const char *name)
+	group::group (permission_manager& perm_man, int id, int power, const char *name)
 		: perm_man (perm_man)
 	{
+		this->id = id;
 		this->power = power;
 		std::strcpy (this->name, name);
 		this->col = 'f';
@@ -100,15 +101,17 @@ namespace hCraft {
 			this->add (*ptr++);
 	}
 	
+	
+	
 	/* 
-	 * Copies and inserts all permissions from the specified group into this
-	 * one.
+	 * Inherits all permissions from the specified group.
 	 */
 	void
-	group::add (const group& other)
+	group::inherit (group *grp)
 	{
-		for (permission p : other.perms)
-			this->add (p);
+		if (!grp || grp == this)
+			return;
+		this->parents.push_back (grp);
 	}
 	
 	
@@ -143,6 +146,10 @@ namespace hCraft {
 					return true;
 			}
 		
+		for (group *grp : this->parents)
+			if (grp->has (perm))
+				return true;
+		
 		return false;
 	}
 	
@@ -153,6 +160,73 @@ namespace hCraft {
 		if (!res.valid ())
 			return false;
 		return this->has (res);
+	}
+	
+	
+	
+//----
+	
+	/* 
+	 * Class constructor.
+	 */
+	group_manager::group_manager (permission_manager& perm_man)
+		: perm_man (perm_man)
+	{
+		this->id_counter = 0;
+	}
+	
+	/* 
+	 * Class destructor.
+	 */
+	group_manager::~group_manager ()
+	{
+		this->clear ();
+	}
+	
+	
+	
+	/* 
+	 * Creates and inserts a new group into the given
+	 */
+	group*
+	group_manager::add (int power, const char *name)
+	{
+		std::string nm {name};
+		auto itr = this->groups.find (nm);
+		if (itr != this->groups.end ())
+			{ return nullptr; }
+		
+		group* grp = new group (this->perm_man, (this->id_counter)++, power, name);
+		this->groups[std::move (nm)] = grp;
+		return grp;
+	}
+	
+	/* 
+	 * Searches for the group that has the specified name (case-sensitive).
+	 */
+	group*
+	group_manager::find (const char *name)
+	{
+		auto itr = this->groups.find (name);
+		if (itr != this->groups.end ())
+			return itr->second;
+		return nullptr;
+	}
+	
+	
+	
+	/* 
+	 * Removes all groups from this manager.
+	 */
+	void
+	group_manager::clear ()
+	{
+		for (auto itr = this->groups.begin (); itr != this->groups.end (); ++itr)
+			{
+				group *grp = itr->second;
+				delete grp;
+			}
+		this->groups.clear ();
 	}
 }
 

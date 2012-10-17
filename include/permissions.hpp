@@ -22,12 +22,14 @@
 #include <unordered_map>
 #include <string>
 #include <functional>
+#include <vector>
 
 
 namespace hCraft {
 	
 #define PERM_FLAG_ALL     0x00000001U
 #define PERM_FLAG_NONE    0x00000002U
+#define PERM_ID_START     3
 
 	/* 
 	 * Represents a permission node (<comp1>.<comp2>. ... .<compN>) in a compact
@@ -41,7 +43,7 @@ namespace hCraft {
 	public:
 		permission ()
 		{
-			nodes[0] = nodes[1] = nodes[2] = nodes[3] = 2;
+			nodes[0] = nodes[1] = nodes[2] = nodes[3] = PERM_ID_START;
 		}
 		
 		inline bool valid () { return this->nodes[0] != -1; }
@@ -60,8 +62,8 @@ namespace hCraft {
 	 */
 	class permission_manager
 	{
-		std::unordered_map<std::string, int> node_maps[4];
-		int node_ids[4];
+		std::unordered_map<std::string, int> id_maps[4];
+		std::vector<std::string> name_maps[4];
 		
 	public:
 		/* 
@@ -83,6 +85,11 @@ namespace hCraft {
 		 * of the structure's `valid ()' member function will return false.
 		 */
 		permission get (const char *perm);
+		
+		/* 
+		 * Returns a human-readable representation of the given permission node.
+		 */
+		std::string to_string (permission perm);
 	};
 }
 
