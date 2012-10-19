@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "mapgenerator.hpp"
+#include "worldgenerator.hpp"
 #include <unordered_map>
 #include <string>
 #include <chrono>
@@ -28,7 +28,7 @@
 namespace hCraft {
 	
 	void
-	map_generator::generate_edge (map& mp, chunk *out)
+	world_generator::generate_edge (world& wr, chunk *out)
 	{
 		int x, y, z;
 		int height = 64;
@@ -48,18 +48,18 @@ namespace hCraft {
 	
 //----
 	
-	static map_generator*
+	static world_generator*
 	create_flatgrass (long seed)
-		{ return new flatgrass_map_generator (seed); }
+		{ return new flatgrass_world_generator (seed); }
 	
 	
 	/* 
-	 * Finds and instantiates a new map generator from the given name.
+	 * Finds and instantiates a new world generator from the given name.
 	 */
-	map_generator*
-	map_generator::create (const char *name, long seed)
+	world_generator*
+	world_generator::create (const char *name, long seed)
 	{
-		static std::unordered_map<std::string, map_generator* (*) (long)> generators {
+		static std::unordered_map<std::string, world_generator* (*) (long)> generators {
 				{ "flatgrass", create_flatgrass },
 			};
 		
@@ -69,10 +69,10 @@ namespace hCraft {
 		return nullptr;
 	}
 	
-	map_generator*
-	map_generator::create (const char *name)
+	world_generator*
+	world_generator::create (const char *name)
 	{
-		return map_generator::create (name,
+		return world_generator::create (name,
 			std::chrono::system_clock::to_time_t (
 				std::chrono::system_clock::now ()) & 0xFFFFFFFF);
 	}

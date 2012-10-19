@@ -19,7 +19,7 @@
 #ifndef _hCraft__HWPROVIDER_H_
 #define _hCraft__HWPROVIDER_H_
 
-#include "mapprovider.hpp"
+#include "worldprovider.hpp"
 #include <fstream>
 
 
@@ -110,9 +110,9 @@ namespace hCraft {
 	
 	
 	/* 
-	 * Map exporter for .hw (hCraft world) formats.
+	 * World exporter for .hw (hCraft world) formats.
 	 */
-	class hw_provider: public map_provider
+	class hw_provider: public world_provider
 	{
 		std::string out_path;
 		hw_superblock *sblocks[4096];
@@ -120,7 +120,7 @@ namespace hCraft {
 		
 	public:
 		/* 
-		 * Constructs a new map provider for the HWv1 format.
+		 * Constructs a new world provider for the HWv1 format.
 		 */
 		hw_provider (const char *path, const char *world_name);
 		
@@ -134,9 +134,9 @@ namespace hCraft {
 		/* 
 		 * Opens the underlying file stream for reading\writing.
 		 * By using open () and close (), multiple chunks can be read\written
-		 * without reopening the map file everytime.
+		 * without reopening the world file everytime.
 		 */
-		virtual void open (map &cmap);
+		virtual void open (world &wr);
 		
 		/* 
 		 * Closes the underlying file stream.
@@ -169,21 +169,21 @@ namespace hCraft {
 		/* 
 		 * Saves only the specified chunk.
 		 */
-		virtual void save (map& cmap, chunk *ch, int x, int z);
+		virtual void save (world& wr, chunk *ch, int x, int z);
 		
 		/* 
-		 * Saves the specified map without writing out any chunks.
+		 * Saves the specified world without writing out any chunks.
 		 */
-		virtual void save_empty (map &cmap);
+		virtual void save_empty (world &wr);
 		
 		
 		
 		/* 
 		 * Attempts to load the chunk located at the specified coordinates into
 		 * @{ch}. Returns true on success, and false if the chunk is not present
-		 * within the map file.
+		 * within the world file.
 		 */
-		virtual bool load (map &cmap, chunk *ch, int x, int z);
+		virtual bool load (world &wr, chunk *ch, int x, int z);
 	};
 }
 

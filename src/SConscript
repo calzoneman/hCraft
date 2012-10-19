@@ -9,15 +9,14 @@ hCraft_sources = Split("""
 		entity.cpp
 		position.cpp
 		chunk.cpp
-		map.cpp
 		world.cpp
 		blocks.cpp
-		mapgenerator.cpp
+		worldgenerator.cpp
 		flatgrass.cpp
 		stringutils.cpp
 		wordwrap.cpp
 		threadpool.cpp
-		mapprovider.cpp
+		worldprovider.cpp
 		hwprovider.cpp
 		utils.cpp
 		rank.cpp

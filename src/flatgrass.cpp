@@ -23,9 +23,9 @@
 namespace hCraft {
 	
 	/* 
-	 * Constructs a new flatgrass map generator.
+	 * Constructs a new flatgrass world generator.
 	 */
-	flatgrass_map_generator::flatgrass_map_generator (long seed)
+	flatgrass_world_generator::flatgrass_world_generator (long seed)
 	{
 		this->seed = seed;
 	}
@@ -36,7 +36,7 @@ namespace hCraft {
 	 * Generates flatgrass terrain on the specified chunk.
 	 */
 	void
-	flatgrass_map_generator::generate (map& mp, chunk *out, int cx, int cz)
+	flatgrass_world_generator::generate (world& wr, chunk *out, int cx, int cz)
 	{
 		int x, y, z;
 		unsigned int xz_hash = std::hash<long> () (((long)cz << 32) | cx) & 0xFFFFFFFF;

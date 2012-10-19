@@ -1084,10 +1084,10 @@ namespace hCraft {
 		
 		log () << "Creating main world." << std::endl;
 		world *main_world = new world (this->get_config ().main_world,
-			map_generator::create ("flatgrass"),
-			map_provider::create ("hw", "worlds", "main"));
-		main_world->get_map ().set_size (32, 32);
-		main_world->get_map ().prepare_spawn (10);
+			world_generator::create ("flatgrass"),
+			world_provider::create ("hw", "worlds", "main"));
+		main_world->set_size (32, 32);
+		main_world->prepare_spawn (10);
 		this->add_world (main_world);
 		this->main_world = main_world;
 	}
@@ -1102,7 +1102,7 @@ namespace hCraft {
 			for (auto itr = this->worlds.begin (); itr != this->worlds.end (); ++itr)
 				{
 					world *w = itr->second;
-					w->get_map ().save_all ();
+					w->save_all ();
 					delete w;
 				}
 			this->worlds.clear ();

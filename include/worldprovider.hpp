@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _hCraft__MAPPROVIDER_H_
-#define _hCraft__MAPPROVIDER_H_
+#ifndef _hCraft__WORLDPROVIDER_H_
+#define _hCraft__WORLDPROVIDER_H_
 
 #include "position.hpp"
 #include <vector>
@@ -28,25 +28,25 @@
 namespace hCraft {
 	
 	class chunk;
-	class map;
+	class world;
 	
 	
 	/* 
-	 * Abstract base class for all map importer\exporter implementations.
+	 * Abstract base class for all world importer\exporter implementations.
 	 */
-	class map_provider
+	class world_provider
 	{
 	public:
-		virtual ~map_provider () { }
+		virtual ~world_provider () { }
 		
 		
 		
 		/* 
 		 * Opens the underlying file stream for reading\writing.
 		 * By using open () and close (), multiple chunks can be read\written
-		 * without reopening the map file everytime.
+		 * without reopening the world file everytime.
 		 */
-		virtual void open (map &cmap) = 0;
+		virtual void open (world &wr) = 0;
 		
 		/* 
 		 * Closes the underlying file stream.
@@ -58,12 +58,12 @@ namespace hCraft {
 		/* 
 		 * Saves only the specified chunk.
 		 */
-		virtual void save (map& cmap, chunk *ch, int x, int z) = 0;
+		virtual void save (world& wr, chunk *ch, int x, int z) = 0;
 		
 		/* 
-		 * Saves the specified map without writing out any chunks.
+		 * Saves the specified world without writing out any chunks.
 		 */
-		virtual void save_empty (map &cmap) = 0;
+		virtual void save_empty (world &wr) = 0;
 		
 		
 		
@@ -91,18 +91,18 @@ namespace hCraft {
 		/* 
 		 * Attempts to load the chunk located at the specified coordinates into
 		 * @{ch}. Returns true on success, and false if the chunk is not present
-		 * within the map file.
+		 * within the world file.
 		 */
-		virtual bool load (map &cmap, chunk *ch, int x, int z) = 0;
+		virtual bool load (world &wr, chunk *ch, int x, int z) = 0;
 		
 		
 		
 		/* 
-		 * Returns a new instance of the map provider named @{name}.
-		 * @{path} specifies the directory to which the map should be exported to\
+		 * Returns a new instance of the world provider named @{name}.
+		 * @{path} specifies the directory to which the world should be exported to/
 		 * imported from.
 		 */
-		static map_provider* create (const char *name, const char *path,
+		static world_provider* create (const char *name, const char *path,
 			const char *world_name);
 	};
 }

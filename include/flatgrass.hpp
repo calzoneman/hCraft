@@ -16,10 +16,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _hCraft__MAPGENERATOR__FLATGRASS_H_
-#define _hCraft__MAPGENERATOR__FLATGRASS_H_
+#ifndef _hCraft__WORLDGENERATOR__FLATGRASS_H_
+#define _hCraft__WORLDGENERATOR__FLATGRASS_H_
 
-#include "mapgenerator.hpp"
+#include "worldgenerator.hpp"
 #include <random>
 
 
@@ -28,22 +28,22 @@ namespace hCraft {
 	/* 
 	 * Simple flatgrass generation.
 	 */
-	class flatgrass_map_generator: public map_generator
+	class flatgrass_world_generator: public world_generator
 	{
 		std::minstd_rand rnd;
 		long seed;
 		
 	public:
 		/* 
-		 * Constructs a new flatgrass map generator.
+		 * Constructs a new flatgrass world generator.
 		 */
-		flatgrass_map_generator (long seed);
+		flatgrass_world_generator (long seed);
 		
 		
 		/* 
 		 * Generates flatgrass terrain on the specified chunk.
 		 */
-		virtual void generate (map& mp, chunk *out, int cx, int cz);
+		virtual void generate (world& wr, chunk *out, int cx, int cz);
 	};
 }
 

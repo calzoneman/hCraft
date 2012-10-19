@@ -252,7 +252,7 @@ namespace hCraft {
 			{
 				this->curr_world->get_players ().remove (this);
 				
-				chunk *curr_chunk = this->curr_world->get_map ().get_chunk
+				chunk *curr_chunk = this->curr_world->get_chunk
 					(this->curr_chunk.x, this->curr_chunk.z);
 				if (curr_chunk)
 					curr_chunk->remove_entity (this);
@@ -335,7 +335,7 @@ namespace hCraft {
 			}
 		
 		this->curr_world = w;
-		this->set_pos (w->get_map ().get_spawn ());
+		this->set_pos (w->get_spawn ());
 		this->curr_world->get_players ().add (this);
 		
 		this->stream_chunks ();
@@ -408,7 +408,7 @@ namespace hCraft {
 				this->send (packet::make_empty_chunk (cpos.x, cpos.z));
 				
 				// despawn self from other players and vice-versa.
-				chunk *ch = this->get_world ()->get_map ().load_chunk (cpos.x, cpos.z);
+				chunk *ch = this->get_world ()->load_chunk (cpos.x, cpos.z);
 				
 				player *me = this;
 				ch->all_entities (
@@ -429,7 +429,7 @@ namespace hCraft {
 		for (auto cpos : to_load)
 			{
 				this->known_chunks.insert (cpos);
-				chunk *ch = this->get_world ()->get_map ().load_chunk (cpos.x, cpos.z);
+				chunk *ch = this->get_world ()->load_chunk (cpos.x, cpos.z);
 				this->send (packet::make_chunk (cpos.x, cpos.z, ch));
 				
 				// spawn self to other players and vice-versa.
@@ -449,11 +449,11 @@ namespace hCraft {
 			}
 		to_load.clear ();
 		
-		chunk *prev_chunk = this->get_world ()->get_map ().get_chunk (this->curr_chunk.x, this->curr_chunk.z);
+		chunk *prev_chunk = this->get_world ()->get_chunk (this->curr_chunk.x, this->curr_chunk.z);
 		if (prev_chunk)
 			prev_chunk->remove_entity (this);
 		
-		chunk *new_chunk = this->get_world ()->get_map ().load_chunk (center.x, center.z);
+		chunk *new_chunk = this->get_world ()->load_chunk (center.x, center.z);
 		new_chunk->add_entity (this);
 		this->curr_chunk.set (center.x, center.z);
 	}
@@ -468,8 +468,8 @@ namespace hCraft {
 	player::move_to (entity_pos dest)
 	{
 		block_pos b_dest = dest;
-		int w_width = this->get_world ()->get_map ().get_width ();
-		int w_depth = this->get_world ()->get_map ().get_depth ();
+		int w_width = this->get_world ()->get_width ();
+		int w_depth = this->get_world ()->get_depth ();
 		if ((w_width > 0) || (w_depth > 0))
 			{
 				bool changed = false;
@@ -1000,15 +1000,15 @@ namespace hCraft {
 		z = reader.read_int ();
 		face = reader.read_byte ();
 		
-		int w_width = pl->get_world ()->get_map ().get_width ();
-		int w_depth = pl->get_world ()->get_map ().get_depth ();
+		int w_width = pl->get_world ()->get_width ();
+		int w_depth = pl->get_world ()->get_depth ();
 		if (((w_width > 0) && ((x >= w_width) || (x < 0))) ||
 				((w_depth > 0) && ((z >= w_depth) || (z < 0))))
 			{
 				pl->send (packet::make_block_change (
 					x, y, z,
-					pl->get_world ()->get_map ().get_id (x, y, z),
-					pl->get_world ()->get_map ().get_meta (x, y, z)));
+					pl->get_world ()->get_id (x, y, z),
+					pl->get_world ()->get_meta (x, y, z)));
 				return;
 			}
 		

@@ -17,7 +17,7 @@
  */
 
 #include "hwprovider.hpp"
-#include "map.hpp"
+#include "world.hpp"
 #include "chunk.hpp"
 #include <iostream>
 #include <fstream>
@@ -235,7 +235,7 @@ namespace hCraft {
 	static void read_file (hw_superblock **, binary_reader); // forward def
 	
 	/* 
-	 * Constructs a new map provider for the HWv1 format.
+	 * Constructs a new world provider for the HWv1 format.
 	 */
 	hw_provider::hw_provider (const char *path, const char *world_name)
 		: out_path (path)
@@ -272,10 +272,10 @@ namespace hCraft {
 	/* 
 	 * Opens the underlying file stream for reading\writing.
 	 * By using open () and close (), multiple chunks can be read\written
-	 * without reopening the map file everytime.
+	 * without reopening the world file everytime.
 	 */
  	void
- 	hw_provider::open (map &cmap)
+ 	hw_provider::open (world &wr)
  	{
  		if (this->strm.is_open ())
  			return;
@@ -284,7 +284,7 @@ namespace hCraft {
  			| std::ios_base::out);
  		if (!this->strm)
  			{
- 				this->save_empty (cmap);
+ 				this->save_empty (wr);
  				this->strm.open (this->out_path, std::ios_base::binary | std::ios_base::in
  					| std::ios_base::out);
  			}
@@ -790,12 +790,12 @@ namespace hCraft {
 	 * Saves only the specified chunk.
 	 */
 	void
-	hw_provider::save (map& cmap, chunk *ch, int x, int z)
+	hw_provider::save (world& wr, chunk *ch, int x, int z)
 	{
 		bool close_when_done = false;
 		if (!this->strm.is_open ())
 			{
-				this->open (cmap);
+				this->open (wr);
 				if (!this->strm)
 					return;
 				close_when_done = true;
@@ -815,18 +815,18 @@ namespace hCraft {
 //----
 	
 	static void
-	save_empty_imp (map &cmap, std::ostream& strm, hw_superblock **sblock_table)
+	save_empty_imp (world &wr, std::ostream& strm, hw_superblock **sblock_table)
 	{
 		binary_writer writer (strm);
 		
 		writer.write_int (0x31765748); // Magic ID ("HWv1")
 		
 		// world dimensions
-		writer.write_int (cmap.get_width ());
-		writer.write_int (cmap.get_depth ());
+		writer.write_int (wr.get_width ());
+		writer.write_int (wr.get_depth ());
 		
 		// spawn pos
-		auto spawn_pos = cmap.get_spawn ();
+		auto spawn_pos = wr.get_spawn ();
 		writer.write_double (spawn_pos.x);
 		writer.write_double (spawn_pos.y);
 		writer.write_double (spawn_pos.z);
@@ -852,17 +852,17 @@ namespace hCraft {
 	}
 	
 	/* 
-	 * Saves the specified map without writing out any chunks.
+	 * Saves the specified world without writing out any chunks.
 	 */
 	void
-	hw_provider::save_empty (map &cmap)
+	hw_provider::save_empty (world &wr)
 	{
 		std::ofstream strm (this->out_path, std::ios_base::binary | std::ios_base::out
 			| std::ios_base::trunc);
 		if (!strm)
 			throw std::runtime_error ("failed to open world file");
 		
-		save_empty_imp (cmap, strm, this->sblocks);
+		save_empty_imp (wr, strm, this->sblocks);
 		strm.close ();
 	}
 	
@@ -1064,10 +1064,10 @@ namespace hCraft {
 	/* 
 	 * Attempts to load the chunk located at the specified coordinates into
 	 * @{ch}. Returns true on success, and false if the chunk is not present
-	 * within the map file.
+	 * within the world file.
 	 */
 	bool
-	hw_provider::load (map &cmap, chunk *ch, int x, int z)
+	hw_provider::load (world &wr, chunk *ch, int x, int z)
 	{
 		if (!this->strm.is_open ())
 			return false;

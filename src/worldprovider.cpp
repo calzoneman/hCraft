@@ -16,33 +16,37 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _hCraft__MAPGENERATOR_H_
-#define _hCraft__MAPGENERATOR_H_
+#include "worldprovider.hpp"
+#include <unordered_map>
+#include <string>
 
-#include "chunk.hpp"
+#include "hwprovider.hpp"
 
 
 namespace hCraft {
 	
-	class map;
+	static world_provider*
+	create_hw_provider (const char *path, const char *world_name)
+		{ return new hw_provider (path, world_name); }
 	
 	/* 
-	 * Base class for all map generators.
+	 * Returns a new instance of the world provider named @{name}.
+	 * @{path} specifies the directory to which the world should be exported to\
+	 * imported from.
 	 */
-	class map_generator
+	world_provider*
+	world_provider::create (const char *name, const char *path,
+			const char *world_name)
 	{
-	public:
-		virtual ~map_generator () { }
-		virtual void generate (map& mp, chunk *out, int cx, int cz) = 0;
-		virtual void generate_edge (map& mp, chunk *out);
+		static std::unordered_map<std::string, world_provider* (*) (const char *, const char *)> creators {
+			{ "hw", create_hw_provider },
+		};
 		
-		/* 
-		 * Finds and instantiates a new map generator from the given name.
-		 */
-		static map_generator* create (const char *name, long seed);
-		static map_generator* create (const char *name);
-	};
+		auto itr = creators.find (name);
+		if (itr != creators.end ())
+			return itr->second (path, world_name);
+		
+		return nullptr;
+	}
 }
-
-#endif
 
