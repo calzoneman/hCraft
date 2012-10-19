@@ -18,6 +18,9 @@
 
 #include "rank.hpp"
 #include <cstring>
+#include <sstream>
+#include <string>
+#include <stdexcept>
 
 
 namespace hCraft {
@@ -120,7 +123,7 @@ namespace hCraft {
 	 * Checks whether this group has the given permission node.
 	 */
 	bool
-	group::has (permission perm)
+	group::has (permission perm) const
 	{
 		auto itr = this->perms.find (perm);
 		if (itr != this->perms.end ())
@@ -154,7 +157,7 @@ namespace hCraft {
 	}
 	
 	bool
-	group::has (const char *str)
+	group::has (const char *str) const
 	{
 		permission res = this->perm_man.get (str);
 		if (!res.valid ())
@@ -227,6 +230,176 @@ namespace hCraft {
 				delete grp;
 			}
 		this->groups.clear ();
+	}
+	
+	
+	
+//----
+	
+	/* 
+	 * Constructs an empty rank, that does not hold any groups.
+	 */
+	rank::rank ()
+		{ }
+	
+	/* 
+	 * Constructs a new rank from the given group string (in the form of
+	 * <group1>;<group2>; ... ;<groupN>).
+	 */
+	rank::rank (const char *group_str, group_manager& groups)
+	{
+		this->set (group_str, groups);
+	}
+	
+	/* 
+	 * Copy constructor.
+	 */
+	rank::rank (const rank& other)
+	{
+		this->set (other);
+	}
+	
+	
+	
+	/* 
+	 * Returns a group string representation of this rank object (groups names
+	 * seperated by semicolons).
+	 */
+	void
+	rank::get_string (std::string& out)
+	{
+		out.clear ();
+		for (group *grp : this->groups)
+			{
+				if (!out.empty ())
+					out.push_back (';');
+				out.append (grp->get_name ());
+			}
+	}
+	
+	
+	
+	/* 
+	 * Inserts all the groups contained within the given group string
+	 * (in the form of: <group1>;<group2>;...<groupN>). And previous
+	 * groups that were held by the rank are removed.
+	 */
+	void
+	rank::set (const char *group_str, group_manager& groups)
+	{
+		this->groups.clear ();
+		
+		std::stringstream ss {group_str};
+		std::string str;
+		while (std::getline (ss, str, ';'))
+			{
+				group *grp = groups.find (str.c_str ());
+				if (!grp)
+					throw std::runtime_error ("group \"" + str + "\" does not exist");
+				this->groups.push_back (grp);
+			}
+	}
+	
+	void
+	rank::set (const rank& other)
+	{
+		if (this == &other)
+			return;
+		
+		this->groups = other.groups;
+	}
+	
+	void
+	rank::operator= (const rank& other)
+	{
+		this->set (other);
+	}
+	
+	
+	
+	/* 
+	 * Searches through the rank's group list for the highest power field.
+	 */
+	int
+	rank::power () const
+	{
+		group *grp = this->highest ();
+		return grp ? grp->get_power () : 0;
+	}
+	
+	/* 
+	 * Returns the group that has the highest power field.
+	 */
+	group*
+	rank::highest () const
+	{
+		if (this->groups.size () == 0)
+			return nullptr;
+		
+		group *max = this->groups[0];
+		for (auto itr = this->groups.begin () + 1; itr != this->groups.end (); ++itr)
+			{
+				group *grp = *itr;
+				if (grp->get_power () > max->get_power ())
+					max = grp;
+			}
+		
+		return max;
+	}
+	
+	
+	/* 
+	 * Checks whether one or more of the groups contained in this rank have
+	 * the given permission node registered.
+	 */
+	bool
+	rank::has (const char *perm) const
+	{
+		if (this->groups.empty ())
+			return false;
+		
+		const permission_manager& perm_man = this->groups[0]->get_perm_man ();
+		permission perm_struct = perm_man.get (perm);
+		if (!perm_struct.valid ())
+			return false;
+		
+		for (group *grp : this->groups)
+			{
+				if (grp->has (perm_struct))
+					return true;
+			}
+		
+		return false;
+	}
+	
+	
+	
+	/* 
+	 * Comparison between rank objects:
+	 */
+	
+	bool
+	rank::operator== (const rank& other) const
+	{
+		return (this->groups == other.groups);
+	}
+	
+	bool
+	rank::operator!= (const rank& other) const
+	{
+		return (this->groups != other.groups);
+	}
+	
+	bool
+	rank::operator< (const rank& other) const
+	{
+		return (this->power () < other.power ());
+	}
+	
+	bool
+	rank::operator> (const rank& other) const
+	{
+		return (this->power () > other.power ());
 	}
 }
 

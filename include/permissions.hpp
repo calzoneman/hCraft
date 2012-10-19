@@ -84,12 +84,12 @@ namespace hCraft {
 		 * If the string does not name a valid permission node, the return value
 		 * of the structure's `valid ()' member function will return false.
 		 */
-		permission get (const char *perm);
+		permission get (const char *perm) const;
 		
 		/* 
 		 * Returns a human-readable representation of the given permission node.
 		 */
-		std::string to_string (permission perm);
+		std::string to_string (permission perm) const;
 	};
 }
 

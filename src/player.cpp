@@ -21,6 +21,7 @@
 #include "stringutils.hpp"
 #include "wordwrap.hpp"
 #include "commands/command.hpp"
+#include "sql.hpp"
 
 #include <string>
 #include <vector>
@@ -158,7 +159,17 @@ namespace hCraft {
 							[pl] (void *ctx)
 								{
 									unsigned char *data = static_cast<unsigned char *> (ctx);
-									pl->handle (data);
+									
+									try
+										{
+											pl->handle (data);
+										}
+									catch (const std::exception& ex)
+										{
+											pl->log (LT_ERROR) << "Exception: " << ex.what () << std::endl;
+											pl->disconnect ();
+										}
+									
 									delete[] data;
 								}, data);
 						
@@ -684,6 +695,40 @@ namespace hCraft {
 	
 //----
 	
+	/* 
+	 * Loads information about the player from the server's SQL database.
+	 */
+	void
+	player::load_data ()
+	{
+		sql::statement stmt = this->get_server ().sql ().create (
+			"SELECT * FROM `players` WHERE `name`=?;");
+		stmt.bind_text (1, this->get_username ());
+		
+		if (stmt.step () == sql::row)
+			{
+				const char *group_str = (const char *)stmt.column_text (2);
+				
+				this->rnk.set (group_str, this->get_server ().get_groups ());
+			}
+		else
+			{
+				this->rnk.set (this->get_server ().get_groups ().default_rank);
+				std::string grp_str;
+				this->rnk.get_string (grp_str);
+				
+				sql::statement stmt = this->get_server ().sql ().create (
+					"INSERT INTO `players` (`name`, `groups`) VALUES (?, ?)");
+				stmt.bind_text (1, this->get_username ());
+				stmt.bind_text (2, grp_str.c_str (), -1, sql::dctor_transient);
+				stmt.execute ();
+			}
+	}
+	
+	
+	
+//----
+	
 	static bool
 	ms_passed (std::chrono::time_point<std::chrono::system_clock> pt, int ms)
 	{
@@ -736,7 +781,6 @@ namespace hCraft {
 			}
 		
 		char username[17];
-		/*
 		int username_len = reader.read_string (username, 16);
 		if (username_len < 2)
 			{
@@ -744,20 +788,23 @@ namespace hCraft {
 				pl->disconnect ();
 				return;
 			}
-		*/
+		/*
+		// Used when testing
 		{
 			static const char *names[] =
-				{ "BizarreCake", "laCour", "triddin", "H4X", "kev009" };
+				{ "BizarreCake", "testdude", "testdude2", "testdude3" };
 			static int index = 0, count = 5;
 			const char *cur = names[index++];
 			if (index >= count)
 				index = 0;
 			std::strcpy (username, cur);
 		}
+		*/
 		
 		pl->log () << "Player " << username << " has logged in from @" << pl->get_ip () << std::endl;
 		std::strcpy (pl->username, username);
 		
+		pl->load_data ();
 		pl->handshake = true;
 		
 		if (!pl->get_server ().done_connecting (pl))
@@ -828,13 +875,33 @@ namespace hCraft {
 						return;
 					}
 				
+				{
+					const char** perms = cmd->get_permissions ();
+					const char** perm  = perms;
+					for (; *perm; ++perm)
+						{
+							if (!pl->rnk.has (*perm))
+								{
+									pl->message_nowrap ("§cInsufficient permissions§7.");
+									return;
+								}
+						}
+				}
+				
 				cmd->execute (pl, cread);
 				return;
 			}
 			
 	continue_write:
 		std::ostringstream ss;
-		ss << "§9" << pl->get_username () << "§e: §f" << msg;
+		
+		group *hgrp = pl->rnk.get_groups ()[0];
+		for (group *grp : pl->rnk.get_groups ())
+			ss << grp->get_prefix ();
+		ss << "§" << hgrp->get_color () << pl->get_username ();
+		for (group *grp : pl->rnk.get_groups ())
+			ss << grp->get_suffix ();
+		ss << "§f: " << msg;
 		
 		std::string out = ss.str ();
 		

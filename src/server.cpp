@@ -816,9 +816,11 @@ namespace hCraft {
 				{ return (*a) < (*b); });
 		
 		emit << YAML::BeginMap;
+		
+		emit << YAML::Key << "default-rank" << YAML::Value << "guest";
+		
 		emit << YAML::Key << "groups";
 		emit << YAML::Value << YAML::BeginMap;
-		
 		for (group* grp : sorted_groups)
 			{
 				emit << YAML::Key << grp->get_name ();
@@ -1016,9 +1018,17 @@ namespace hCraft {
 		if (!parser.GetNextDocument (doc))
 			return;
 		
+		const YAML::Node *def_rank = doc.FindValue ("default-rank");
+		if (!def_rank || def_rank->Type () != YAML::NodeType::Scalar)
+			throw server_error ("in \"ranks.yaml\": \"default-rank\" field not found or invalid");
+		std::string def_rank_name;
+		(*def_rank) >> def_rank_name;
+		
 		const YAML::Node *groups_map = doc.FindValue ("groups");
 		if (groups_map && groups_map->Type () == YAML::NodeType::Map)
 			_ranks_read_groups_map (log, groups_map, groups);
+		
+		groups.default_rank.set (def_rank_name.c_str (), groups);
 	}
 	
 	
@@ -1038,7 +1048,7 @@ namespace hCraft {
 		
 		create_default_ranks (this->groups);
 		
-		log () << "\"ranks.yaml\" does not exist... Instantiating one with default settings.";
+		log () << "\"ranks.yaml\" does not exist... Instantiating one with default settings." << std::endl;
 		std::ofstream ostrm ("ranks.yaml");
 		if (!ostrm)
 			{

@@ -254,6 +254,8 @@ namespace hCraft {
 		inline world* get_main_world () { return this->main_world; }
 		inline command_list& get_commands () { return *this->commands; }
 		inline sql::database& sql () { return this->db; }
+		inline permission_manager& get_perms () { return this->perms; }
+		inline group_manager& get_groups () { return this->groups; }
 		
 	public:
 		/* 

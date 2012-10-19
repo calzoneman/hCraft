@@ -23,6 +23,7 @@
 #include "logger.hpp"
 #include "packet.hpp"
 #include "world.hpp"
+#include "rank.hpp"
 
 #include <queue>
 #include <unordered_set>
@@ -78,6 +79,9 @@ namespace hCraft {
 		
 		std::ostringstream msgbuf;
 		
+	public:
+		rank rnk;
+		
 	private:
 		/* 
 		 * libevent callback functions:
@@ -130,6 +134,13 @@ namespace hCraft {
 		 * Moves the player to the specified position.
 		 */
 		void move_to (entity_pos dest);
+		
+	//----
+		
+		/* 
+		 * Loads information about the player from the server's SQL database.
+		 */
+		void load_data ();
 		
 	public:
 		inline server& get_server () { return this->srv; }

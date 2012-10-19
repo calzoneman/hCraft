@@ -24,6 +24,10 @@ namespace hCraft {
 	
 	namespace sql {
 		
+		void (*dctor_static)(void *) = SQLITE_STATIC;
+		void (*dctor_transient)(void *) = SQLITE_TRANSIENT;
+		
+		
 		database::database ()
 		{
 			this->db = nullptr;
@@ -71,7 +75,13 @@ namespace hCraft {
 		statement
 		database::create (const char *sql)
 		{
-			statement stmt (*this, sql);
+			return statement (*this, sql);
+		}
+		
+		statement
+		database::create (const std::string& sql)
+		{
+			return this->create (sql.c_str ());
 		}
 		
 		void
@@ -82,14 +92,7 @@ namespace hCraft {
 			while (*str)
 				{
 					statement stmt (*this, str, &str);
-					for (;;)
-						{
-							err = stmt.step ();
-							if (err == done)
-								break;
-							if (err != row)
-								throw sql_error (sqlite3_errmsg (this->db));
-						}
+					stmt.execute ();
 				}
 		}
 		
@@ -117,6 +120,12 @@ namespace hCraft {
 		
 		statement::~statement ()
 		{
+			this->finalize ();
+		}
+		
+		void
+		statement::finalize ()
+		{
 			if (this->stmt)
 				{
 					sqlite3_finalize (this->stmt);
@@ -125,6 +134,32 @@ namespace hCraft {
 		
 		
 		
+		void
+		statement::bind_text (int index, const char *text, int len,
+			void (*dctor)(void *))
+		{
+			if (!this->stmt)
+				return;
+			if (sqlite3_bind_text (this->stmt, index, text, len, dctor) != SQLITE_OK)
+				throw sql_error (sqlite3_errmsg (this->db.db));
+		}
+		
+		
+		
+		void
+		statement::execute ()
+		{
+			int ret;
+			for (;;)
+				{
+					ret = this->step ();
+					if (ret == sql::done)
+						break;
+					if (ret != sql::row)
+						throw sql_error (sqlite3_errmsg (this->db.db));
+				}
+		}
+		
 		return_code
 		statement::step ()
 		{
@@ -132,6 +167,13 @@ namespace hCraft {
 				return sqlite3_step (this->stmt);
 			return done;
 		}
+		
+		void
+		statement::reset ()
+		{
+			sqlite3_reset (this->stmt);
+		}
+		
 		
 		
 		int

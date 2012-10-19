@@ -116,7 +116,7 @@ namespace hCraft {
 	 * of the structure's `valid ()' member function will return false.
 	 */
 	permission
-	permission_manager::get (const char *perm)
+	permission_manager::get (const char *perm) const
 	{
 		const char *ptr = perm;
 		char tmp[33];
@@ -126,8 +126,8 @@ namespace hCraft {
 		int depth = 0;
 		for ( ; *ptr != '\0' && depth < 4; ++ depth)
 			{
-				std::unordered_map<std::string, int>& id_map = this->id_maps[depth];
-				std::vector<std::string>& name_map = this->name_maps[depth];
+				const std::unordered_map<std::string, int>& id_map = this->id_maps[depth];
+				const std::vector<std::string>& name_map = this->name_maps[depth];
 				
 				const char *dot = std::strchr (ptr, '.');
 				if (dot)
@@ -179,7 +179,7 @@ namespace hCraft {
 	 * Returns a human-readable representation of the given permission node.
 	 */
 	std::string
-	permission_manager::to_string (permission perm)
+	permission_manager::to_string (permission perm) const
 	{
 		std::string str;
 		for (int i = 0; i < 4; ++i)

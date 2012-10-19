@@ -19,8 +19,9 @@
 #ifndef _hCraft__SQL_H_
 #define _hCraft__SQL_H_
 
-#include <sqlite3.h>
 #include <stdexcept>
+#include <string>
+#include <sqlite3.h>
 
 
 namespace hCraft {
@@ -38,6 +39,10 @@ namespace hCraft {
 	 */
 	namespace sql {
 		
+		// forward defs:
+		class database;
+		
+		
 		typedef int return_code;
 		const return_code ok    = SQLITE_OK;
 		const return_code done  = SQLITE_DONE;
@@ -45,7 +50,9 @@ namespace hCraft {
 		const return_code row   = SQLITE_ROW;
 		const return_code error = SQLITE_ERROR;
 		
-		class database; // forward def
+		extern void (*dctor_static)(void *);
+		extern void (*dctor_transient)(void *);
+		
 		
 		class statement
 		{
@@ -60,8 +67,15 @@ namespace hCraft {
 			
 		public:
 			~statement ();
+			void finalize ();
 			
+			void bind_text (int index, const char *text, int len = -1,
+				void (*dctor)(void *) = dctor_static);
+			
+			void execute ();
 			return_code step ();
+			void reset ();
+			
 			int column_int (int col);
 			long long column_int64 (int col);
 			double column_double (int col);
@@ -87,6 +101,7 @@ namespace hCraft {
 			
 			
 			statement create (const char *sql);
+			statement create (const std::string& sql);
 			void execute (const char *sql);
 			int scalar_int (const char *sql);
 		};

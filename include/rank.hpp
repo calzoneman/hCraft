@@ -23,6 +23,7 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <vector>
+#include <string>
 
 
 namespace hCraft {
@@ -48,6 +49,8 @@ namespace hCraft {
 		std::vector<group *> parents;
 		
 	public:
+		inline const permission_manager& get_perm_man () const
+			{ return this->perm_man; }
 		inline std::unordered_set<permission>& get_perms ()
 			{ return this->perms; }
 		inline const std::vector<group *>& get_parents () const
@@ -76,8 +79,8 @@ namespace hCraft {
 		/* 
 		 * Checks whether this group has the given permission node.
 		 */
-		bool has (permission perm);
-		bool has (const char *str);
+		bool has (permission perm) const;
+		bool has (const char *str) const;
 		
 		
 		/* 
@@ -129,13 +132,83 @@ namespace hCraft {
 	};
 	
 	
+	
+	class group_manager; // forward def
+	
 	/* 
 	 * 
 	 */
 	class rank
 	{
 		std::vector<group *> groups;
+		
+	public:
+		inline const std::vector<group *>& get_groups () const
+			{ return this->groups; }
+		
+	public:
+		/* 
+		 * Constructs an empty rank, that does not hold any groups.
+		 */
+		rank ();
+		
+		/* 
+		 * Constructs a new rank from the given group string (in the form of
+		 * <group1>;<group2>; ... ;<groupN>).
+		 */
+		rank (const char *group_str, group_manager& groups);
+		
+		/* 
+		 * Copy constructor.
+		 */
+		rank (const rank& other);
+		
+		
+		/* 
+		 * Returns a group string representation of this rank object (groups names
+		 * seperated by semicolons).
+		 */
+		void get_string (std::string& out);
+		
+		
+		/* 
+		 * Inserts all the groups contained within the given group string
+		 * (in the form of: <group1>;<group2>;...<groupN>). And previous
+		 * groups that were held by the rank are removed.
+		 */
+		void set (const char *group_str, group_manager& groups);
+		
+		void set (const rank& other);
+		void operator= (const rank& other);
+		
+		
+		/* 
+		 * Searches through the rank's group list for the highest power field.
+		 */
+		int power () const;
+		
+		/* 
+		 * Returns the group that has the highest power field.
+		 */
+		group* highest () const;
+		
+		/* 
+		 * Checks whether one or more of the groups contained in this rank have
+		 * the given permission node registered.
+		 */
+		bool has (const char *perm) const;
+		
+	//---
+		/* 
+		 * Comparison between rank objects:
+		 */
+		
+		bool operator== (const rank& other) const;
+		bool operator!= (const rank& other) const;
+		bool operator< (const rank& other) const;
+		bool operator> (const rank& other) const;
 	};
+	
 	
 	
 	/* 
@@ -146,6 +219,9 @@ namespace hCraft {
 		std::unordered_map<std::string, group *> groups;
 		permission_manager& perm_man;
 		int id_counter;
+		
+	public:
+		rank default_rank;
 		
 	public:
 		inline std::unordered_map<std::string, group *>::iterator
