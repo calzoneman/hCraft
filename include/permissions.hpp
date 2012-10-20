@@ -82,7 +82,7 @@ namespace hCraft {
 		/* 
 		 * Returns the permission structure associated with the given string.
 		 * If the string does not name a valid permission node, the return value
-		 * of the structure's `valid ()' member function will return false.
+		 * of the structure's `valid ()' member function will be false.
 		 */
 		permission get (const char *perm) const;
 		
