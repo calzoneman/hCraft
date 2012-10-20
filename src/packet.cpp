@@ -599,7 +599,19 @@ namespace hCraft {
 		pack->put_double (z);
 		pack->put_float (r);
 		pack->put_float (l);
-		pack->put_byte (on_ground);
+		pack->put_bool (on_ground);
+		
+		return pack;
+	}
+	
+	packet*
+	packet::make_animation (int eid, char animation)
+	{
+		packet *pack = new packet (6);
+		
+		pack->put_byte (0x12);
+		pack->put_int (eid);
+		pack->put_byte (animation);
 		
 		return pack;
 	}
@@ -782,7 +794,7 @@ namespace hCraft {
 		pack->put_byte (0x33);
 		pack->put_int (x);
 		pack->put_int (z);
-		pack->put_byte (1); // ground-up continuous
+		pack->put_bool (true); // ground-up continuous
 		pack->put_short (primary_bitmap);
 		pack->put_short (add_bitmap);
 		pack->put_int (compressed_size);
@@ -803,7 +815,7 @@ namespace hCraft {
 		pack->put_byte (0x33);
 		pack->put_int (x);
 		pack->put_int (z);
-		pack->put_byte (1); // ground-up continuous
+		pack->put_bool (true); // ground-up continuous
 		pack->put_short (0); // primary bitmap
 		pack->put_short (0); // add bitmap
 		pack->put_int (sizeof unload_sequence);
@@ -824,6 +836,20 @@ namespace hCraft {
 		pack->put_int (z);
 		pack->put_short (id);
 		pack->put_byte (meta);
+		
+		return pack;
+	}
+	
+	packet*
+	packet::make_player_list_item (const char *name, bool online,
+		short ping_ms)
+	{
+		packet *pack = new packet (6 + (std::strlen (name) * 2));
+		
+		pack->put_byte (0xC9);
+		pack->put_string (name);
+		pack->put_bool (online);
+		pack->put_short (ping_ms);
 		
 		return pack;
 	}

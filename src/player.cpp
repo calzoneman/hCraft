@@ -252,6 +252,13 @@ namespace hCraft {
 		if (this->curr_world)
 			{
 				this->curr_world->get_players ().remove (this);
+				if (this->handshake && !silent)
+					{
+						std::ostringstream ss;
+						ss << "§e[§c-§e] §" << this->rnk.main_group->get_color () << this->get_username ()
+							<< " §ehas left the server";
+						this->get_server ().get_players ().message (ss.str ());
+					}
 				
 				chunk *curr_chunk = this->curr_world->get_chunk (
 					this->curr_chunk.x, this->curr_chunk.z);
@@ -665,6 +672,21 @@ namespace hCraft {
 	
 //----
 	
+	static void
+	get_ping_name (char col, const char *username, char *out)
+	{
+		std::string str;
+		str.append ("§");
+		str.push_back (col);
+		str.append (username);
+		if (str.size () > 16)
+			{
+				str.resize (13);
+				str.append ("...");
+			}
+		std::strcpy (out, str.c_str ());
+	}
+	
 	/* 
 	 * Sends a ping packet to the player and waits for a response.
 	 */
@@ -713,13 +735,23 @@ namespace hCraft {
 		if (pl == this)
 			return;
 		
+		std::string col_name;
+		col_name.append ("§");
+		col_name.push_back (this->rnk.main_group->get_color ());
+		col_name.append (this->get_username ());
+		
+		char ping_name[24];
+		get_ping_name (this->rnk.main_group->get_color (), this->get_username (),
+			ping_name);
+		
 		entity_pos me_pos = this->get_pos ();
 		entity_metadata me_meta;
 		this->build_metadata (me_meta);
 		pl->send (packet::make_spawn_named_entity (
-			this->get_eid (), this->get_username (),
+			this->get_eid (), col_name.c_str (),
 			me_pos.x, me_pos.y, me_pos.z, me_pos.r, me_pos.l, 0, me_meta));
 		pl->send (packet::make_entity_head_look (this->get_eid (), me_pos.r));
+		pl->send (packet::make_player_list_item (ping_name, true, this->ping_time_ms));
 		
 		{
 			std::lock_guard<std::mutex> guard {pl->visible_player_lock};
@@ -736,7 +768,12 @@ namespace hCraft {
 		if (pl == this)
 			return;
 		
+		char ping_name[24];
+		get_ping_name (this->rnk.main_group->get_color (), this->get_username (),
+			ping_name);
+		
 		pl->send (packet::make_destroy_entity (this->get_eid ()));
+		pl->send (packet::make_player_list_item (ping_name, false, 0));
 		std::lock_guard<std::mutex> guard {pl->visible_player_lock};
 		pl->visible_players.erase (this);
 	}
@@ -858,6 +895,9 @@ namespace hCraft {
 	void
 	player::handle_packet_00 (player *pl, packet_reader reader)
 	{
+		if (!pl->logged_in)
+			{ pl->disconnect (); return; }
+		
 		int id = reader.read_byte ();
 		
 		if (!pl->ping_waiting)
@@ -872,6 +912,23 @@ namespace hCraft {
 		pl->ping_time_ms = std::chrono::duration_cast<std::chrono::milliseconds> (
 			std::chrono::system_clock::now () - pl->last_ping).count ();
 		pl->ping_waiting = false;
+		
+		// update self
+		char ping_name[24];
+		get_ping_name (pl->rnk.main_group->get_color (), pl->get_username (),
+			ping_name);
+		pl->send (packet::make_player_list_item (ping_name, true, pl->ping_time_ms));
+		
+		// update other players
+		player *me = pl;
+		pl->get_world ()->get_players ().all (
+			[me] (player *pl)
+				{
+					char ping_name[24];
+					get_ping_name (me->rnk.main_group->get_color (), me->get_username (),
+						ping_name);
+					pl->send (packet::make_player_list_item (ping_name, true, me->ping_time_ms));
+				});
 	}
 	
 	void
@@ -922,6 +979,20 @@ namespace hCraft {
 				? 64 : (pl->get_server ().get_config ().max_players)));
 		pl->logged_in = true;
 		
+		// insert self into player list ping
+		{
+			char ping_name[24];
+			get_ping_name (pl->rnk.main_group->get_color (), pl->get_username (),
+				ping_name);
+			pl->send (packet::make_player_list_item (ping_name, true, pl->ping_time_ms));
+		}
+		
+		{
+			std::ostringstream ss;
+			ss << "§e[§a+§e] §" << pl->rnk.main_group->get_color () << pl->get_username ()
+				<< " §ehas joined the server§f!";
+			pl->get_server ().get_players ().message (ss.str ());
+		}
 		pl->join_world (pl->get_server ().get_main_world ());
 	}
 	
@@ -1054,6 +1125,9 @@ namespace hCraft {
 	void
 	player::handle_packet_0a (player *pl, packet_reader reader)
 	{
+		if (!pl->handshake)
+			{ pl->disconnect (); return; }
+		
 		bool on_ground;
 		
 		on_ground = reader.read_byte ();
@@ -1069,6 +1143,9 @@ namespace hCraft {
 	void
 	player::handle_packet_0b (player *pl, packet_reader reader)
 	{
+		if (!pl->logged_in)
+			{ pl->disconnect (); return; }
+		
 		double x, y, z, stance;
 		bool on_ground;
 		
@@ -1088,6 +1165,9 @@ namespace hCraft {
 	void
 	player::handle_packet_0c (player *pl, packet_reader reader)
 	{
+		if (!pl->logged_in)
+			{ pl->disconnect (); return; }
+		
 		float r, l;
 		bool on_ground;
 		
@@ -1105,6 +1185,9 @@ namespace hCraft {
 	void
 	player::handle_packet_0d (player *pl, packet_reader reader)
 	{
+		if (!pl->logged_in)
+			{ pl->disconnect (); return; }
+		
 		double x, y, z, stance;
 		float r, l;
 		bool on_ground;
@@ -1127,6 +1210,9 @@ namespace hCraft {
 	void
 	player::handle_packet_0e (player *pl, packet_reader reader)
 	{
+		if (!pl->logged_in)
+			{ pl->disconnect (); return; }
+		
 		char status;
 		int x;
 		unsigned char y;
@@ -1157,22 +1243,24 @@ namespace hCraft {
 	void
 	player::handle_packet_12 (player *pl, packet_reader reader)
 	{
-		entity_pos dest = pl->get_pos ();
+		if (!pl->logged_in)
+			{ pl->disconnect (); return; }
 		
-		std::lock_guard<std::mutex> guard {pl->visible_player_lock};
-		for (player *other : pl->visible_players)
+		int eid = reader.read_int ();
+		char animation = reader.read_byte ();
+		
+		if (animation == 1)
 			{
-				other->send (packet::make_entity_teleport (pl->get_eid (),
-					(int)(dest.x * 32.0), (int)(dest.y * 32.0),
-					(int)(dest.z * 32.0), dest.r, dest.l));
-				other->send (packet::make_entity_head_look (pl->get_eid (), dest.r));
+				pl->get_world ()->get_players ().send_to_all (
+					packet::make_animation (pl->get_eid (), animation), pl);
 			}
 	}
 	
 	void
 	player::handle_packet_13 (player *pl, packet_reader reader)
 	{
-		
+		if (!pl->logged_in)
+			{ pl->disconnect (); return; }
 	}
 	
 	void

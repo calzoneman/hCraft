@@ -195,6 +195,23 @@ namespace hCraft {
 	}
 	
 	/* 
+	 * Calls the function @{f} on all players visible to player @{target} with
+	 * exception to @{target} itself.
+	 */
+	void
+	playerlist::all_visible (std::function<void (player *)> f, player *target)
+	{
+		std::lock_guard<std::mutex> guard {this->lock};
+		
+		for (auto itr = this->players.begin (); itr != this->players.end (); ++itr)
+			{
+				player *pl = itr->second;
+				if (pl != target && pl->visible_to (target))
+					f (pl);
+			}
+	}
+	
+	/* 
 	 * Iterates through the list, and passes all players to the specified
 	 * predicate function. Players that produce a positive value are
 	 * removed from the list, and can be optinally destroyed as well.
@@ -212,6 +229,49 @@ namespace hCraft {
 				else
 					++ itr;
 			}
+	}
+	
+	
+	
+	/* 
+	 * Broadcasts the given message to all players in this list.
+	 */
+	
+	void
+	playerlist::message (const char *msg, player *except)
+	{
+		this->all (
+			[msg] (player *pl)
+				{
+					pl->message (msg);
+				}, except);
+	}
+	
+	void
+	playerlist::message (const std::string& msg, player *except)
+	{
+		this->message (msg.c_str (), except);
+	}
+	
+	
+	
+	/* 
+	 * Sends the specified packet to all players in this list.
+	 */
+	void
+	playerlist::send_to_all (packet *pack, player *except)
+	{
+		std::lock_guard<std::mutex> guard {this->lock};
+		
+		for (auto itr = this->players.begin (); itr != this->players.end (); ++itr)
+			{
+				player *pl = itr->second;
+				if (pl != except)
+					{
+						pl->send (new packet (*pack));
+					}
+			}
+		delete pack;
 	}
 }
 

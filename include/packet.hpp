@@ -68,6 +68,8 @@ namespace hCraft {
 		void put_double (double val);
 		void put_string (const char *str);
 		void put_bytes (const unsigned char *val, unsigned int len);
+		void put_bool (bool val)
+			{ put_byte (val ? 1 : 0); }
 		
 	//----
 		
@@ -101,6 +103,8 @@ namespace hCraft {
 		static packet* make_player_pos_and_look (double x, double y, double z,
 			double stance, float r, float l, bool on_ground);
 		
+		static packet* make_animation (int eid, char animation);
+		
 		static packet* make_spawn_named_entity (int eid, const char *name, double x,
 			double y, double z, float r, float l, short current_item,
 			entity_metadata& meta);
@@ -125,6 +129,9 @@ namespace hCraft {
 		
 		static packet* make_block_change (int x, unsigned char y, int z,
 			unsigned short id, unsigned char meta);
+		
+		static packet* make_player_list_item (const char *name, bool online,
+			short ping_ms);
 		
 		static packet* make_kick (const char *str);
 	};

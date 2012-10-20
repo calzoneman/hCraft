@@ -20,9 +20,11 @@
 #define _hCraft__PLAYERLIST_H_
 
 #include "cistring.hpp"
+#include "packet.hpp"
 #include <unordered_map>
 #include <mutex>
 #include <functional>
+#include <string>
 
 
 namespace hCraft {
@@ -108,12 +110,31 @@ namespace hCraft {
 		void all (std::function<void (player *)> f, player* except = nullptr);
 		
 		/* 
+		 * Calls the function @{f} on all players visible to player @{target} with
+		 * exception to @{target} itself.
+		 */
+		void all_visible (std::function<void (player *)> f, player *target);
+		
+		/* 
 		 * Iterates through the list, and passes all players to the specified
 		 * predicate function. Players that produce a positive value are
 		 * removed from the list, and can be optinally destroyed as well.
 		 */
 		void remove_if (std::function<bool (player *)> pred,
 			bool delete_players = false);
+		
+		
+		
+		/* 
+		 * Broadcasts the given message to all players in this list.
+		 */
+		void message (const char *msg, player *except = nullptr);
+		void message (const std::string& msg, player *except = nullptr);
+		
+		/* 
+		 * Sends the specified packet to all players in this list.
+		 */
+		void send_to_all (packet *pack, player *except = nullptr);
 	};
 }
 
