@@ -19,6 +19,8 @@
 #include "chunk.hpp"
 #include <cstring>
 
+#include <iostream> // DEBUG
+
 
 namespace hCraft {
 	
@@ -426,7 +428,7 @@ namespace hCraft {
 	 */
 	
 	void
-	chunk::relight (int x, int z)
+	chunk::relight (int x, int z, bool stop_at_zero)
 	{
 		// the top-most layer is always lit.
 		this->set_sky_light (x, 255, z, 15);
@@ -435,21 +437,108 @@ namespace hCraft {
 		for (int y = 254; y >= 0; --y)
 			{
 				if (cur_opacity > 0)
-					{
-						cur_opacity -= block_info::from_id (this->get_id (x, y, z))->opacity;
-					}
+					cur_opacity -= block_info::from_id (this->get_id (x, y, z))->opacity;
+				else if (stop_at_zero)
+					break;
+				
 				this->set_sky_light (x, y, z, (cur_opacity > 0) ? cur_opacity : 0);
 			}
 	}
 	
 	void
-	chunk::relight ()
+	chunk::relight (bool stop_at_zero)
 	{
 		for (int x = 0; x < 16; ++x)
 			for (int z = 0; z < 16; ++z)
 				{
-					this->relight (x, z);
+					this->relight (x, z, stop_at_zero);
 				}
+	}
+	
+	
+	
+	void
+	chunk::respread ()
+	{
+		int x, y, z;
+		for (x = 0; x < 16; ++x)
+			for (z = 0; z < 16; ++z)
+				for (y = 0; y < 255; ++y)
+					{
+						this->respread_around (x, y, z);
+					}
+	}
+	
+	void
+	chunk::respread (int x, int y, int z)
+	{
+		char cl = this->get_sky_light (x, y, z);
+		if (cl == 0)
+			return;
+		
+		std::cout << "[" << x << ", " << y << ", " << z << "] ->" << std::endl;
+		std::cout << "  -> id: " << this->get_id (x, y, z) << std::endl;
+		std::cout << "  -> cl: " << (int)cl << std::endl;
+		
+		if (x > 0 && (this->get_id (x - 1, y, z) == 0)
+			&& this->get_sky_light (x - 1, y, z) < cl)
+			{
+				this->set_sky_light (x - 1, y, z, cl - 1);
+				this->respread (x - 1, y, z);
+			}
+		
+		if (x < 0xF && (this->get_id (x + 1, y, z) == 0)
+			&& this->get_sky_light (x + 1, y, z) < cl)
+			{
+				this->set_sky_light (x + 1, y, z, cl - 1);
+				this->respread (x + 1, y, z);
+			}
+		
+		if (z > 0 && (this->get_id (x, y, z - 1) == 0)
+			&& this->get_sky_light (x, y, z - 1) < cl)
+			{
+				this->set_sky_light (x, y, z - 1, cl - 1);
+				this->respread (x, y, z - 1);
+			}
+		
+		if (z < 0xF && (this->get_id (x, y, z + 1) == 0)
+			&& this->get_sky_light (x, y, z + 1) < cl)
+			{
+				this->set_sky_light (x, y, z + 1, cl - 1);
+				this->respread (x, y, z + 1);
+			}
+		
+		
+		if (y > 0 && (this->get_id (x, y - 1, z) == 0)
+			&& this->get_sky_light (x, y - 1, z) < cl)
+			{
+				this->set_sky_light (x, y - 1, z, cl - 1);
+				this->respread (x, y - 1, z);
+			}
+	}
+	
+	void
+	chunk::respread_around (int x, int y, int z)
+	{
+		if (this->get_id (x, y, z) == 0 && this->get_sky_light (x, y, z) == 0)
+			{
+				std::cout << "dark air block at [" << x << " " << y << " " << z << "]" << std::endl;
+				if (x > 0 && (this->get_id (x - 1, y, z) == 0) &&
+					(this->get_sky_light (x - 1, y, z) > 0))
+					this->respread (x - 1, y, z);
+				
+				if (x < 0xF && (this->get_id (x + 1, y, z) == 0) &&
+					(this->get_sky_light (x + 1, y, z) > 0))
+					this->respread (x + 1, y, z);
+				
+				if (z > 0 && (this->get_id (x, y, z - 1) == 0) &&
+					(this->get_sky_light (x, y, z - 1) > 0))
+					this->respread (x, y, z - 1);
+				
+				if (z < 0xF && (this->get_id (x, y, z + 1) == 0) &&
+					(this->get_sky_light (x, y, z + 1) > 0))
+					this->respread (x, y, z + 1);
+			}
 	}
 	
 	

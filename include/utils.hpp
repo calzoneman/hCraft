@@ -28,6 +28,12 @@ namespace hCraft {
 	namespace utils {
 		
 		inline int
+		iabs (int x)
+		{
+			return (x < 0) ? -x : x;
+		}
+		
+		inline int
 		div (int x, int y)
 		{
 			if (-13 / 5 == -2 && (x < 0) != (y < 0) && x % y != 0)

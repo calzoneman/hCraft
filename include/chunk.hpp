@@ -183,8 +183,12 @@ namespace hCraft {
 		 * Lighting (re)calculation.
 		 */
 		
-		void relight (int x, int z);
-		void relight ();
+		void relight (int x, int z, bool stop_at_zero = true);
+		void relight (bool stop_at_zero = true);
+		
+		void respread ();
+		void respread (int x, int y, int z);
+		void respread_around (int x, int y, int z);
 		
 		
 		/* 

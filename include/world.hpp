@@ -76,7 +76,9 @@ namespace hCraft {
 		bool th_running;
 		
 		std::queue<block_update> updates;
-		std::mutex update_lock;
+		std::queue<block_pos> light_updates;
+		std::recursive_mutex update_lock;
+		
 		std::unordered_map<unsigned long long, chunk *> chunks;
 		std::mutex chunk_lock;
 		
@@ -204,6 +206,8 @@ namespace hCraft {
 		 */
 		void queue_update (int x, int y, int z, unsigned short id,
 			unsigned char meta, player *pl = nullptr);
+		
+		void queue_light_update (int x, int y, int z);
 	};
 }
 

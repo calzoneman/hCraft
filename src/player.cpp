@@ -23,6 +23,7 @@
 #include "commands/command.hpp"
 #include "sql.hpp"
 
+#include <algorithm>
 #include <string>
 #include <vector>
 #include <cstring>
@@ -882,7 +883,38 @@ namespace hCraft {
 						{
 							if (!pl->rnk.has (*perm))
 								{
-									pl->message_nowrap ("§cInsufficient permissions§7.");
+									// find the least powerful group that has this permission.
+									group *sgrp = nullptr;
+									auto& all_groups = pl->get_server ().get_groups ();
+									std::vector<group *> sorted_groups;
+									for (auto itr = all_groups.begin (); itr != all_groups.end (); ++itr)
+										sorted_groups.push_back (itr->second);
+									std::sort (sorted_groups.begin (), sorted_groups.end (),
+										[] (const group *a, const group *b) -> bool
+											{ return (*a) < (*b); });
+									for (group *grp : sorted_groups)
+										{
+											//pl->log (LT_DEBUG) << "Testing \"" << grp->get_name () << "\" (power " << grp->get_power () << ")" << std::endl;
+											if (grp->has (*perm))
+												{ sgrp = grp; break; }
+										}
+									
+									if (sgrp)
+										{
+											const char *name = sgrp->get_name ();
+											bool insert_n =
+												(name[0] == 'a') || (name[0] == 'o') ||
+												(name[0] == 'i') || (name[0] == 'e');
+											
+											std::ostringstream ss;
+											ss << "§4 * §cYou must be *§7at least§c* a";
+											if (insert_n)
+												ss << 'n';
+											ss << " §" << sgrp->get_color () << sgrp->get_name () << "§c to do that§7.";
+											pl->message_nowrap (ss.str ());
+										}
+									else
+										pl->message_nowrap ("§cYou are not allowed to do that§7.");
 									return;
 								}
 						}
@@ -895,14 +927,15 @@ namespace hCraft {
 	continue_write:
 		std::ostringstream ss;
 		
-		group *hgrp = pl->rnk.get_groups ()[0];
+		group *mgrp = pl->rnk.main_group;
 		for (group *grp : pl->rnk.get_groups ())
 			ss << grp->get_prefix ();
-		ss << "§" << hgrp->get_color () << pl->get_username ();
+		ss << "§" << mgrp->get_color () << pl->get_username ();
 		for (group *grp : pl->rnk.get_groups ())
 			ss << grp->get_suffix ();
 		ss << "§f: " << msg;
 		
+		pl->get_logger () (LT_CHAT) << pl->get_username () << ": " << msg << std::endl;
 		std::string out = ss.str ();
 		
 		pl->get_world ()->get_players ().all (

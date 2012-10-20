@@ -1088,6 +1088,7 @@ namespace hCraft {
 			world_provider::create ("hw", "worlds", "main"));
 		main_world->set_size (32, 32);
 		main_world->prepare_spawn (10);
+		main_world->start ();
 		this->add_world (main_world);
 		this->main_world = main_world;
 	}
@@ -1102,6 +1103,7 @@ namespace hCraft {
 			for (auto itr = this->worlds.begin (); itr != this->worlds.end (); ++itr)
 				{
 					world *w = itr->second;
+					w->stop ();
 					w->save_all ();
 					delete w;
 				}

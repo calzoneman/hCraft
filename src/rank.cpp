@@ -240,7 +240,7 @@ namespace hCraft {
 	 * Constructs an empty rank, that does not hold any groups.
 	 */
 	rank::rank ()
-		{ }
+		{ this->main_group = nullptr; }
 	
 	/* 
 	 * Constructs a new rank from the given group string (in the form of
@@ -273,6 +273,8 @@ namespace hCraft {
 			{
 				if (!out.empty ())
 					out.push_back (';');
+				if (grp == this->main_group)
+					out.push_back ('@');
 				out.append (grp->get_name ());
 			}
 	}
@@ -288,16 +290,29 @@ namespace hCraft {
 	rank::set (const char *group_str, group_manager& groups)
 	{
 		this->groups.clear ();
+		this->main_group = nullptr;
 		
 		std::stringstream ss {group_str};
 		std::string str;
 		while (std::getline (ss, str, ';'))
 			{
+				bool is_main = false;
+				if (str[0] == '@')
+					{
+						str.erase (0, 1);
+						is_main = true;
+					}
+				
 				group *grp = groups.find (str.c_str ());
 				if (!grp)
 					throw std::runtime_error ("group \"" + str + "\" does not exist");
 				this->groups.push_back (grp);
+				if (is_main)
+					this->main_group = grp;
 			}
+		
+		if (!this->main_group && !this->groups.empty ())
+			this->main_group = this->groups[0];
 	}
 	
 	void
@@ -307,6 +322,7 @@ namespace hCraft {
 			return;
 		
 		this->groups = other.groups;
+		this->main_group = other.main_group;
 	}
 	
 	void

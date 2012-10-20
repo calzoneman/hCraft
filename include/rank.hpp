@@ -143,6 +143,9 @@ namespace hCraft {
 		std::vector<group *> groups;
 		
 	public:
+		group *main_group;
+		
+	public:
 		inline const std::vector<group *>& get_groups () const
 			{ return this->groups; }
 		

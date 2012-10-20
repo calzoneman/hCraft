@@ -121,11 +121,19 @@ namespace hCraft {
 	void
 	world::worker ()
 	{
+		const static int update_cap   = 32; // per tick
+		int update_count;
+		
 		while (this->th_running)
 			{
 				{
-					std::lock_guard<std::mutex> guard {this->update_lock};
-					if (!this->updates.empty ())
+					std::lock_guard<std::recursive_mutex> guard {this->update_lock};
+					
+					/* 
+					 * Block updates.
+					 */
+					update_count = 0;
+					if (!this->updates.empty () && (update_count < update_cap))
 						{
 							block_update &update = this->updates.front ();
 							this->set_id_and_meta (update.x, update.y, update.z,
@@ -135,6 +143,32 @@ namespace hCraft {
 							if (ch)
 								{
 									ch->relight (utils::mod (update.x, 16), utils::mod (update.z, 16));
+									
+									// check whether we need to recalculate the block's lighting.
+									if ((this->get_id (update.x, update.y, update.z) == BT_AIR) && (
+										//
+										((this->get_id (update.x - 1, update.y, update.z) == BT_AIR) &&
+										utils::iabs (this->get_sky_light (update.x - 1, update.y, update.z)
+										- this->get_sky_light (update.x, update.y, update.z)) > 1) ||
+										((this->get_id (update.x + 1, update.y, update.z) == BT_AIR) &&
+										utils::iabs (this->get_sky_light (update.x + 1, update.y, update.z)
+										- this->get_sky_light (update.x, update.y, update.z)) > 1) ||
+										((this->get_id (update.x, update.y, update.z - 1) == BT_AIR) &&
+										utils::iabs (this->get_sky_light (update.x, update.y, update.z - 1)
+										- this->get_sky_light (update.x, update.y, update.z)) > 1) ||
+										((this->get_id (update.x, update.y, update.z + 1) == BT_AIR) &&
+										utils::iabs (this->get_sky_light (update.x, update.y, update.z + 1)
+										- this->get_sky_light (update.x, update.y, update.z)) > 1) ||
+										((update.y < 255) && ((this->get_id (update.x, update.y + 1, update.z) == BT_AIR) &&
+										utils::iabs (this->get_sky_light (update.x, update.y + 1, update.z)
+										- this->get_sky_light (update.x, update.y, update.z)) > 1)) ||
+										((update.y > 0) && ((this->get_id (update.x, update.y - 1, update.z) == BT_AIR) &&
+										utils::iabs (this->get_sky_light (update.x, update.y - 1, update.z)
+										- this->get_sky_light (update.x, update.y, update.z)) > 1)) ))
+										//
+										{ this->queue_light_update (update.x, update.y, update.z); }
+										
+									
 									this->get_players ().all (
 										[&update] (player *pl)
 											{
@@ -144,6 +178,44 @@ namespace hCraft {
 								}
 							
 							this->updates.pop ();
+							++ update_count;
+						}
+					
+					/* 
+					 * Lighting updates.
+					 */
+					update_count = 0;
+					if (!this->light_updates.empty () && (update_count < update_cap))
+						{
+							block_pos &update = this->light_updates.front ();
+							
+							// find brightest (in terms of sky light) block around this one.
+							char this_sl = this->get_sky_light (update.x, update.y, update.z);
+							char brightest = this->get_sky_light (update.x, update.y, update.z);
+							char sl;
+							if ((sl = this->get_sky_light (update.x - 1, update.y, update.z)) > brightest)
+								brightest = sl;
+							if ((sl = this->get_sky_light (update.x + 1, update.y, update.z)) > brightest)
+								brightest = sl;
+							if ((sl = this->get_sky_light (update.x, update.y, update.z - 1)) > brightest)
+								brightest = sl;
+							if ((sl = this->get_sky_light (update.x, update.y, update.z + 1)) > brightest)
+								brightest = sl;
+							if ((update.y > 0) && (sl = this->get_sky_light (update.x, update.y - 1, update.z)) > brightest)
+								brightest = sl;
+							if ((update.y < 255) && (sl = this->get_sky_light (update.x, update.y + 1, update.z)) > brightest)
+								brightest = sl;
+							
+							// the sky light value of this block will be the value of the brightest one
+							// minus one.
+							sl = brightest - 1;
+							if (sl != this_sl)
+								{
+									this->set_sky_light (update.x, update.y, update.z, sl);
+								}
+							
+							this->light_updates.pop ();
+							++ update_count;
 						}
 				}
 				
@@ -340,7 +412,7 @@ namespace hCraft {
 		this->put_chunk (x, z, ch);
 		this->gen->generate (*this, ch, x, z);
 		ch->recalc_heightmap ();
-		ch->relight ();
+		ch->relight (false);
 		return ch;
 	}
 	
@@ -438,8 +510,15 @@ namespace hCraft {
 	world::queue_update (int x, int y, int z, unsigned short id,
 		unsigned char meta, player *pl)
 	{
-		std::lock_guard<std::mutex> guard {this->update_lock};
+		std::lock_guard<std::recursive_mutex> guard {this->update_lock};
 		this->updates.emplace (x, y, z, id, meta, pl);
+	}
+	
+	void
+	world::queue_light_update (int x, int y, int z)
+	{
+		std::lock_guard<std::recursive_mutex> guard {this->update_lock};
+		this->light_updates.emplace (x, y, z);
 	}
 }
 
