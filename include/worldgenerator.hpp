@@ -36,6 +36,13 @@ namespace hCraft {
 		virtual void generate (world& wr, chunk *out, int cx, int cz) = 0;
 		virtual void generate_edge (world& wr, chunk *out);
 		
+		
+		/* 
+		 * Returns the name of this generator.
+		 */
+		virtual const char* name () = 0;
+		virtual long seed () = 0;
+		
 		/* 
 		 * Finds and instantiates a new world generator from the given name.
 		 */

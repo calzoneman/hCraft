@@ -131,6 +131,21 @@ namespace hCraft {
 		read_double ()
 			{ unsigned long long num = read_long (); return *((double *)&num); }
 		
+		inline std::string
+		read_string ()
+		{
+			short len = this->read_short ();
+			std::string str;
+			str.reserve (len + 1);
+			
+			for (int i = 0; i < len; ++i)
+				{
+					str.push_back (this->read_byte ());
+				}
+			
+			return str;
+		}
+		
 		inline void
 		read_bytes (unsigned char *data, unsigned int len)
 		{
@@ -207,6 +222,15 @@ namespace hCraft {
 			{ write_long (*(unsigned long long *)&val); }
 		
 		inline void
+		write_string (const char *str)
+			{
+				int len = std::strlen (str);
+				write_short (std::strlen (str));
+				for (int i = 0; i < len; ++i)
+					write_byte (str[i]);
+			}
+		
+		inline void
 		write_bytes (const unsigned char *data, unsigned int len)
 		{
 			this->strm.write ((const char *)data, len);
@@ -232,17 +256,17 @@ namespace hCraft {
 	
 //----
 		
-	static void read_file (hw_superblock **, binary_reader); // forward def
+	static void read_file (world_information&, hw_superblock **, binary_reader); // forward def
 	
 	/* 
 	 * Constructs a new world provider for the HWv1 format.
 	 */
 	hw_provider::hw_provider (const char *path, const char *world_name)
-		: out_path (path)
+		: out_path (path), inf ()
 	{
 		if (this->out_path[this->out_path.size () - 1] != '/')
 			this->out_path.push_back ('/');
-		this->out_path.append (this->make_name (world_name));
+		this->out_path.append (hw_provider_naming ().make_name (world_name));
 		
 		// read tables if the world file already exists
 		{
@@ -251,7 +275,7 @@ namespace hCraft {
 			if (strm.is_open ())
 				{
 					binary_reader reader {strm};
-					read_file (this->sblocks, reader);
+					read_file (this->inf, this->sblocks, reader);
 					strm.close ();
 				}
 		}
@@ -311,7 +335,7 @@ namespace hCraft {
 	 * it.
 	 */
 	std::string
-	hw_provider::make_name (const char *world_name)
+	hw_provider_naming::make_name (const char *world_name)
 	{
 		std::string out;
 		out.reserve (std::strlen (world_name) + 4);
@@ -335,9 +359,11 @@ namespace hCraft {
 	 * exporter (could be a name prefix, suffix, extension, etc...).
 	 */
 	bool
-	hw_provider::claims_name (const char *path)
+	hw_provider_naming::claims_name (const char *path)
 	{
-		return false;
+		int len = std::strlen (path);
+		return ((len > 4) && ((path[len - 3] == '.') && (path[len - 2] == 'h')
+			&& (path[len - 1] == 'w')));
 	}
 	
 	/* 
@@ -347,7 +373,15 @@ namespace hCraft {
 	bool
 	hw_provider::claims (const char *path)
 	{
-		return false;
+		std::ifstream strm (path);
+		if (!strm)
+			return false;
+		
+		binary_reader reader (strm);
+		bool cl = (reader.read_int () == 0x31765748);
+		
+		strm.close ();
+		return cl;
 	}
 	
 	
@@ -526,8 +560,9 @@ namespace hCraft {
 	
 	static hw_chunk*
 	find_or_create_chunk (int x, int z, hw_superblock **sblocks,
-		binary_writer writer, bool create = true)
+		binary_writer writer, bool create = true, bool* got_created = nullptr)
 	{
+		if (got_created) *got_created = false;
 		hw_region *region = find_or_create_region (
 			fast_floor (x / 32.0), fast_floor (z / 32.0), sblocks, writer, create);
 		if (!region) return nullptr;
@@ -558,6 +593,7 @@ namespace hCraft {
 		
 		if (create)
 			{
+				if (got_created) *got_created = true;
 				region->chunks[hash_m] = new hw_chunk (x, z);
 				ch = region->chunks[hash_m];
 		
@@ -759,7 +795,7 @@ namespace hCraft {
 	
 	static void
 	save_chunk (chunk *ch, int x, int z, hw_superblock **sblocks,
-		binary_writer writer)
+		world_information& inf, binary_writer writer)
 	{
 		unsigned char *compressed;
 		unsigned long compressed_size;
@@ -778,9 +814,18 @@ namespace hCraft {
 			}
 		delete[] data;
 		
-		hw_chunk *hch = find_or_create_chunk (x, z, sblocks, writer);
+		bool created;
+		hw_chunk *hch = find_or_create_chunk (x, z, sblocks, writer, &created);
 		if (hch)
 			write_in_sectors (hch, compressed, compressed_size, writer);
+		
+		if (created)
+			{
+				// update chunk count
+				writer.seek (44);
+				writer.write_int (++ (inf.chunk_count));
+			}
+		
 		delete[] compressed;
 	}
 	
@@ -802,7 +847,7 @@ namespace hCraft {
 			}
 		
 		binary_writer writer {this->strm};
-		save_chunk (ch, x, z, this->sblocks, writer);
+		save_chunk (ch, x, z, this->sblocks, this->inf, writer);
 		
 		if (close_when_done)
 			{
@@ -835,6 +880,14 @@ namespace hCraft {
 		
 		writer.write_int (0); // chunk count
 		
+		// the name of the generator used by the world.
+		if (wr.get_generator ())
+			writer.write_string (wr.get_generator ()->name ());
+		else
+			writer.write_string ("");
+		
+		writer.write_int (wr.get_generator ()->seed ());
+		
 		writer.pad_to (512);
 		
 		// super-block table
@@ -857,6 +910,16 @@ namespace hCraft {
 	void
 	hw_provider::save_empty (world &wr)
 	{
+		{
+			// check if the file exists
+			std::ifstream strm (this->out_path);
+			if (strm.is_open ())
+				{
+					strm.close ();
+					return;
+				}
+		}
+		
 		std::ofstream strm (this->out_path, std::ios_base::binary | std::ios_base::out
 			| std::ios_base::trunc);
 		if (!strm)
@@ -963,8 +1026,40 @@ namespace hCraft {
 	}
 	
 	static void
-	read_file (hw_superblock **sblocks, binary_reader reader)
+	read_header (world_information& inf, binary_reader reader)
 	{
+		reader.seek (4);
+		
+		// dimensions
+		inf.width = reader.read_int ();
+		inf.depth = reader.read_int ();
+		
+		// spawn pos
+		inf.spawn_pos.x = reader.read_double ();
+		inf.spawn_pos.y = reader.read_double ();
+		inf.spawn_pos.z = reader.read_double ();
+		inf.spawn_pos.r = reader.read_float ();
+		inf.spawn_pos.l = reader.read_float ();
+		inf.spawn_pos.on_ground = true;
+		
+		inf.chunk_count = reader.read_int ();
+		
+		// generator
+		int generator_len = reader.read_short ();
+		inf.generator.clear ();
+		inf.generator.reserve (generator_len + 1);
+		for (int i = 0; i < generator_len; ++i)
+			{
+				inf.generator.push_back (reader.read_byte ());
+			}
+		
+		inf.seed = reader.read_int ();
+	}
+	
+	static void
+	read_file (world_information& inf, hw_superblock **sblocks, binary_reader reader)
+	{
+		read_header (inf, reader);
 		read_tables (sblocks, reader);
 	}
 	

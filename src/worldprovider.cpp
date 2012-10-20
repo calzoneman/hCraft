@@ -19,6 +19,9 @@
 #include "worldprovider.hpp"
 #include <unordered_map>
 #include <string>
+#include <vector>
+#include <memory>
+#include <sys/stat.h>
 
 #include "hwprovider.hpp"
 
@@ -47,6 +50,49 @@ namespace hCraft {
 			return itr->second (path, world_name);
 		
 		return nullptr;
+	}
+	
+	/* 
+	 * Attempts to determine the type of provider used by the world that has
+	 * the specified name (the world must already exist).
+	 */
+	std::string
+	world_provider::determine (const char *path, const char *world_name)
+	{
+		static std::vector<std::unique_ptr<world_provider_naming>> provs;
+		static bool populated = false;
+		
+		if (!populated)
+			{
+				provs.emplace_back (new hw_provider_naming ());
+				populated = true;
+			}
+		
+		std::string full_name;
+		for (std::unique_ptr<world_provider_naming>& ptr : provs)
+			{
+				world_provider_naming *checker = ptr.get ();
+				
+				full_name.clear ();
+				full_name.append (path);
+				if (full_name[full_name.size () - 1] != '/')
+					full_name.push_back ('/');
+				full_name.append (checker->make_name (world_name));
+				
+				struct stat st;
+				if (stat (full_name.c_str (), &st))
+					continue;
+				
+				bool is_dir = st.st_mode & S_IFDIR;
+				bool format_dir = checker->is_directory_format ();
+				if ((int)is_dir != (int)format_dir)
+					continue;
+				
+				// match
+				return checker->provider_name ();
+			}
+		
+		return std::string ();
 	}
 }
 

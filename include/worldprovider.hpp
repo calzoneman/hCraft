@@ -32,12 +32,62 @@ namespace hCraft {
 	
 	
 	/* 
+	 * Fields required to be saved to\loaded from all formats.
+	 */
+	struct world_information
+	{
+		int width;
+		int depth;
+		entity_pos spawn_pos;
+		
+		int chunk_count;
+		
+		std::string generator;
+		int seed;
+	};
+	
+	
+	class world_provider_naming
+	{
+	public:
+		virtual ~world_provider_naming () {}
+		virtual const char* provider_name () = 0;
+		
+		
+		/* 
+		 * Returns true if the format is stored within a separate directory
+		 * (like Anvil).
+		 */
+		virtual bool is_directory_format () = 0;
+			
+		/* 
+		 * Adds required prefixes, suffixes, etc... to the specified world name so
+		 * that the importer's claims_name () function returns true when passed to
+		 * it.
+		 */
+		virtual std::string make_name (const char *world_name) = 0;
+		
+		/* 
+		 * Checks whether the specified path name meets the format required by this
+		 * exporter (could be a name prefix, suffix, extension, etc...).
+		 */
+		virtual bool claims_name (const char *path) = 0;
+	};
+	
+	
+	/* 
 	 * Abstract base class for all world importer\exporter implementations.
 	 */
 	class world_provider
 	{
 	public:
 		virtual ~world_provider () { }
+		
+		
+		/* 
+		 * Returns the name of this world provider.
+		 */
+		virtual const char* name () = 0;
 		
 		
 		
@@ -62,23 +112,12 @@ namespace hCraft {
 		
 		/* 
 		 * Saves the specified world without writing out any chunks.
+		 * NOTE: If a world file already exists at the destination path, an empty
+		 *       template will NOT be written out.
 		 */
-		virtual void save_empty (world &wr) = 0;
+		virtual void save_empty (world &wr) = 0; 
 		
 		
-		
-		/* 
-		 * Adds required prefixes, suffixes, etc... to the specified world name so
-		 * that the importer's claims_name () function returns true when passed to
-		 * it.
-		 */
-		virtual std::string make_name (const char *world_name) = 0;
-		
-		/* 
-		 * Checks whether the specified path name meets the format required by this
-		 * exporter (could be a name prefix, suffix, extension, etc...).
-		 */
-		virtual bool claims_name (const char *path) = 0;
 		
 		/* 
 		 * Opens the file located at path @{path} and performs a check to see if it
@@ -86,14 +125,18 @@ namespace hCraft {
 		 */
 		virtual bool claims (const char *path) = 0;
 		
-		
-		
 		/* 
 		 * Attempts to load the chunk located at the specified coordinates into
 		 * @{ch}. Returns true on success, and false if the chunk is not present
 		 * within the world file.
 		 */
 		virtual bool load (world &wr, chunk *ch, int x, int z) = 0;
+		
+		/* 
+		 * Returns a structure that contains essential informatino about the
+		 * underlying world.
+		 */
+		virtual const world_information& info () = 0;
 		
 		
 		
@@ -103,6 +146,14 @@ namespace hCraft {
 		 * imported from.
 		 */
 		static world_provider* create (const char *name, const char *path,
+			const char *world_name);
+		
+		/* 
+		 * Attempts to determine the type of provider used by the world that has
+		 * the specified name (the world must already exist). On success, the name
+		 * of the provider is returned; otherwise, an empty string is returned.
+		 */
+		static std::string determine (const char *path,
 			const char *world_name);
 	};
 }

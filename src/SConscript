@@ -27,6 +27,8 @@ hCraft_sources = Split("""
 		commands/help.cpp
 		commands/me.cpp
 		commands/ping.cpp
+		commands/wcreate.cpp
+		commands/world.cpp
 		""")
 
 hCraft_libs = Split("""

@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "info.hpp"
+#include "infoc.hpp"
 #include "../server.hpp"
 #include "../player.hpp"
 

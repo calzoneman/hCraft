@@ -46,6 +46,14 @@ namespace hCraft {
 			
 			std::string arg;
 			bool got_arg;
+			
+		//---
+			
+			bool is_string () { return true; }
+			std::string& as_string () { return this->arg; }
+			
+			bool is_int ();
+			int as_int ();
 		};
 		
 	private:
@@ -122,6 +130,11 @@ namespace hCraft {
 		virtual const char* get_name () = 0;
 		
 		/* 
+		 * Returns a null-terminated array of aliases (secondary names).
+		 */
+		virtual const char** get_aliases ();
+		
+		/* 
 		 * Returns a short summary of what the command does (a brief sentence or two,
 		 * highlighting the main points).
 		 */
@@ -178,6 +191,7 @@ namespace hCraft {
 	class command_list
 	{
 		std::unordered_map<std::string, command *> commands;
+		std::unordered_map<std::string, std::string> aliases;
 		
 	public:
 		/* 

@@ -19,9 +19,10 @@
 #include "command.hpp"
 #include "player.hpp"
 
-#include "info.hpp"
-#include "chat.hpp"
-#include "misc.hpp"
+#include "infoc.hpp"
+#include "chatc.hpp"
+#include "miscc.hpp"
+#include "worldc.hpp"
 
 #include <unordered_map>
 #include <stdexcept>
@@ -37,6 +38,8 @@ namespace hCraft {
 	static command* create_c_help () { return new commands::c_help (); }
 	static command* create_c_me () { return new commands::c_me (); }
 	static command* create_c_ping () { return new commands::c_ping (); }
+	static command* create_c_wcreate () { return new commands::c_wcreate (); }
+	static command* create_c_world () { return new commands::c_world (); }
 	
 	/* 
 	 * Returns a new instance of the command named @{name}.
@@ -48,6 +51,8 @@ namespace hCraft {
 			{ "help", create_c_help },
 			{ "me", create_c_me },
 			{ "ping", create_c_ping },
+			{ "wcreate", create_c_wcreate },
+			{ "world", create_c_world },
 			};
 		
 		auto itr = creators.find (name);
@@ -59,7 +64,60 @@ namespace hCraft {
 	
 //----
 	
+	/* 
+	 * Returns a null-terminated array of aliases (secondary names).
+	 */
+	const char**
+	command::get_aliases ()
+	{
+		static const char* arr[] = {
+			nullptr,
+		};
+		return arr;
+	}
 	
+	
+	
+//----
+	
+	bool
+	command_reader::option::is_int ()
+	{
+		if (!this->got_arg)
+			return false;
+		
+		int i = 0;
+		std::string& str = this->as_string ();
+		if (str[0] == '-')
+			{
+				if (str.size () == 1)
+					return false;
+				++i;
+			}
+		
+		for (; i < str.size (); ++i)
+			{
+				int c = str[i];
+				if (!std::isdigit (c))
+					return false;
+			}
+		
+		return true;
+	}
+	
+	int
+	command_reader::option::as_int ()
+	{
+		std::string& str = this->as_string ();
+		std::istringstream ss {str};
+		int num;
+		ss >> num;
+		return num;
+	}
+	
+	
+	
+//----
 	
 	/* 
 	 * Constructs a new command reader from the given string (should be in the
@@ -513,6 +571,23 @@ namespace hCraft {
 	{
 		pl->message ("§6Summary for command §e" + std::string (this->get_name ()) + "§f:");
 		pl->message_spaced ("    " + color_string (this->get_summary ()));
+		if (this->get_aliases ()[0] != nullptr)
+			{
+				std::ostringstream ss;
+				ss << "§8  Aliases§7: ";
+				
+				const char **aliases = this->get_aliases();
+				int count = 0;
+				while (*aliases)
+					{
+						if (count > 0)
+							ss << "§7, ";
+						ss << "§c" << (*aliases++);
+						++ count;
+					}
+				
+				pl->message (ss.str ());
+			}
 	}
 	
 	void
@@ -545,15 +620,33 @@ namespace hCraft {
 				pl->message_spaced (ss.str ());
 				ss.str (std::string ()); ss.clear ();
 			}
+		
+		if (this->get_aliases ()[0] != nullptr)
+			{
+				std::ostringstream ss;
+				ss << "§8Aliases§7: ";
+				
+				const char **aliases = this->get_aliases();
+				int count = 0;
+				while (*aliases)
+					{
+						if (count > 0)
+							ss << "§7, ";
+						ss << "§c" << (*aliases++);
+						++ count;
+					}
+				
+				pl->message (ss.str ());
+			}
 			
-			pl->message_nowrap ("§8Examples§7:");
-			const char **examples = this->get_examples ();
-			for (const char **ex = examples; *ex; ++ex)
-				{
-					ss << "    §7" << (*ex);
-					pl->message_spaced (ss.str ());
-					ss.str (std::string ()); ss.clear ();
-				}
+		pl->message_nowrap ("§8Examples§7:");
+		const char **examples = this->get_examples ();
+		for (const char **ex = examples; *ex; ++ex)
+			{
+				ss << "    §7" << (*ex);
+				pl->message_spaced (ss.str ());
+				ss.str (std::string ()); ss.clear ();
+			}
 	}
 	
 	
@@ -584,6 +677,19 @@ namespace hCraft {
 			throw std::runtime_error ("command cannot be null");
 		
 		this->commands[cmd->get_name ()] = cmd;
+		
+		// register aliases
+		const char **aliases = cmd->get_aliases ();
+		const char **ptr     = aliases;
+		while (*ptr)
+			{
+				const char *alias = *ptr++;
+				auto itr = this->aliases.find (alias);
+				if (itr != this->aliases.end ())
+					throw std::runtime_error ("alias collision");
+				
+				this->aliases[alias] = cmd->get_name ();
+			}
 	}
 	
 	/* 
@@ -595,6 +701,16 @@ namespace hCraft {
 		auto itr = this->commands.find (name);
 		if (itr != this->commands.end ())
 			return itr->second;
+		
+		// check aliases
+		auto aitr = this->aliases.find (name);
+		if (aitr != this->aliases.end ())
+			{
+				const std::string& cmd_name = aitr->second;
+				itr = this->commands.find (cmd_name);
+				if (itr != this->commands.end ())
+					return itr->second;
+			}
 		
 		return nullptr;
 	}

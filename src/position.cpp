@@ -46,6 +46,7 @@ namespace hCraft {
 		this->r = 0.0f;
 		this->l = 0.0f;
 		this->on_ground = true;
+		return *this;
 	}
 	
 	entity_pos&
@@ -57,6 +58,7 @@ namespace hCraft {
 		this->r = 0.0f;
 		this->l = 0.0f;
 		this->on_ground = true;
+		return *this;
 	}
 	
 	
@@ -83,6 +85,7 @@ namespace hCraft {
 		
 		//if (this->y <   0) this->y = 0;
 		//if (this->y > 255) this->y = 255;
+		return *this;
 	}
 	
 	block_pos&
@@ -91,6 +94,7 @@ namespace hCraft {
 		this->x = other.x * 16;
 		this->y = 0;
 		this->z = other.z * 16;
+		return *this;
 	}
 	
 	
@@ -113,6 +117,7 @@ namespace hCraft {
 	{
 		this->x = fast_floor (other.x) / 16;
 		this->z = fast_floor (other.z) / 16;
+		return *this;
 	}
 	
 	chunk_pos&
@@ -120,6 +125,7 @@ namespace hCraft {
 	{
 		this->x = other.x / 16;
 		this->z = other.z / 16;
+		return *this;
 	}
 }
 

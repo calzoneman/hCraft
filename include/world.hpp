@@ -94,6 +94,9 @@ namespace hCraft {
 		inline const char* get_name () { return this->name; }
 		inline playerlist& get_players () { return *this->players; }
 		
+		inline world_generator* get_generator () { return this->gen; }
+		inline world_provider* get_provider () { return this->prov; }
+		
 		inline int get_width () const { return this->width; }
 		inline int get_depth () const { return this->depth; }
 		void set_width (int width);
@@ -121,7 +124,14 @@ namespace hCraft {
 		 */
 		~world ();
 		
+	//----
 		
+		/* 
+		 * Checks whether the specified string can be used to name a world.
+		 */
+		static bool is_valid_name (const char *wname);
+		
+	//----
 		
 		/* 
 		 * Starts the world's "physics"-handling thread.

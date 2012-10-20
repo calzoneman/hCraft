@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "chat.hpp"
+#include "chatc.hpp"
 #include "../server.hpp"
 #include "../player.hpp"
 #include <sstream>
@@ -109,7 +109,8 @@ namespace hCraft {
 				{ this->show_usage (pl); return; }
 			
 			std::ostringstream ss;
-			ss << "§9* " << pl->get_username () << " " << reader.get_arg_string ();
+			ss << "§" << pl->rnk.main_group->get_color () << "* "
+				 << pl->get_username () << " " << reader.get_arg_string ();
 			std::string out = ss.str ();
 			
 			pl->get_world ()->get_players ().all (

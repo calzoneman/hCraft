@@ -27,7 +27,7 @@ namespace hCraft {
 	 */
 	flatgrass_world_generator::flatgrass_world_generator (long seed)
 	{
-		this->seed = seed;
+		this->gen_seed = seed;
 	}
 	
 	
@@ -41,7 +41,7 @@ namespace hCraft {
 		int x, y, z;
 		unsigned int xz_hash = std::hash<long> () (((long)cz << 32) | cx) & 0xFFFFFFFF;
 		
-		this->rnd.seed (this->seed + xz_hash);
+		this->rnd.seed (this->gen_seed + xz_hash);
 		std::uniform_int_distribution<> dist (1, 20);
 		
 		int height = 64;

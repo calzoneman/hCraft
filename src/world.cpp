@@ -24,13 +24,17 @@
 #include <stdexcept>
 #include <cassert>
 #include <cstring>
+#include <cctype>
+
+#include <iostream> // DEBUG
 
 
 namespace hCraft {
 	
 	static unsigned long long
 	chunk_key (int x, int z)
-		{ return ((unsigned long long)z << 32) | (unsigned long long)x; }
+		{ return ((unsigned long long)((unsigned int)z) << 32)
+			| (unsigned long long)((unsigned int)x); }
 	
 	static void
 	chunk_coords (unsigned long long key, int* x, int* z)
@@ -43,7 +47,7 @@ namespace hCraft {
 	 */
 	world::world (const char *name, world_generator *gen, world_provider *provider)
 	{
-		assert (std::strlen (name) <= 32);
+		assert (world::is_valid_name (name));
 		std::strcpy (this->name, name);
 		
 		this->gen = gen;
@@ -85,6 +89,28 @@ namespace hCraft {
 	
 	
 	/* 
+	 * Checks whether the specified string can be used to name a world.
+	 */
+	bool
+	world::is_valid_name (const char *wname)
+	{
+		const char *ptr = wname;
+		int len = 0, c;
+		while (c = *ptr++)
+			{
+				if (len++ == 32)
+					return false;
+				
+				if (!(std::isalnum (c) || (c == '_' || c == '-' || c == '.')))
+					return false;
+			}
+		
+		return true;
+	}
+	
+	
+	
+	/* 
 	 * Starts the world's "physics"-handling thread.
 	 */
 	void
@@ -121,7 +147,8 @@ namespace hCraft {
 	void
 	world::worker ()
 	{
-		const static int update_cap   = 32; // per tick
+		const static int block_update_cap = 64; // per tick
+		const static int light_update_cap = 96; // per tick
 		int update_count;
 		
 		while (this->th_running)
@@ -133,9 +160,25 @@ namespace hCraft {
 					 * Block updates.
 					 */
 					update_count = 0;
-					if (!this->updates.empty () && (update_count < update_cap))
+					if (!this->updates.empty () && (update_count < block_update_cap))
 						{
 							block_update &update = this->updates.front ();
+							
+							if (((this->width > 0) && ((update.x >= this->width) || (update.x < 0))) ||
+								((this->depth > 0) && ((update.z >= this->depth) || (update.z < 0))) ||
+								((update.y < 0) || (update.y > 255)))
+								{
+									this->updates.pop ();
+									continue;
+								}
+							
+							if ((this->get_id (update.x, update.y, update.z) == update.id) &&
+									(this->get_meta (update.x, update.y, update.z) == update.meta))
+								{
+									this->updates.pop ();
+									continue;
+								}
+							
 							this->set_id_and_meta (update.x, update.y, update.z,
 								update.id, update.meta);
 							
@@ -185,7 +228,7 @@ namespace hCraft {
 					 * Lighting updates.
 					 */
 					update_count = 0;
-					if (!this->light_updates.empty () && (update_count < update_cap))
+					if (!this->light_updates.empty () && (update_count < light_update_cap))
 						{
 							block_pos &update = this->light_updates.front ();
 							
@@ -269,6 +312,13 @@ namespace hCraft {
 			return;
 		
 		std::lock_guard<std::mutex> guard {this->chunk_lock};
+		
+		if (this->chunks.empty ())
+			{
+				this->prov->save_empty (*this);
+				return;
+			}
+		
 		this->prov->open (*this);
 		for (auto itr = this->chunks.begin (); itr != this->chunks.end (); ++itr)
 			{
@@ -510,6 +560,9 @@ namespace hCraft {
 	world::queue_update (int x, int y, int z, unsigned short id,
 		unsigned char meta, player *pl)
 	{
+		std::cout << "[" << x << ", " << y << ", " << z << "] -> \n"
+							<< "  -> x / 16 = " << utils::div (x, 16) << ", x % 16 = " << utils::mod (x, 16) << "\n"
+							<< "  -> z / 16 = " << utils::div (z, 16) << ", z % 16 = " << utils::mod (z, 16) << std::endl;
 		std::lock_guard<std::recursive_mutex> guard {this->update_lock};
 		this->updates.emplace (x, y, z, id, meta, pl);
 	}

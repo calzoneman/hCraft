@@ -22,7 +22,9 @@
 #include "wordwrap.hpp"
 #include "commands/command.hpp"
 #include "sql.hpp"
+#include "utils.hpp"
 
+#include <memory>
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -159,19 +161,17 @@ namespace hCraft {
 						pl->get_server ().get_thread_pool ().enqueue (
 							[pl] (void *ctx)
 								{
-									unsigned char *data = static_cast<unsigned char *> (ctx);
+									std::unique_ptr<unsigned char[]> data (static_cast<unsigned char *> (ctx));
 									
 									try
 										{
-											pl->handle (data);
+											pl->handle (data.get ());
 										}
 									catch (const std::exception& ex)
 										{
 											pl->log (LT_ERROR) << "Exception: " << ex.what () << std::endl;
 											pl->disconnect ();
 										}
-									
-									delete[] data;
 								}, data);
 						
 						pl->total_read = 0;
@@ -253,8 +253,8 @@ namespace hCraft {
 			{
 				this->curr_world->get_players ().remove (this);
 				
-				chunk *curr_chunk = this->curr_world->get_chunk
-					(this->curr_chunk.x, this->curr_chunk.z);
+				chunk *curr_chunk = this->curr_world->get_chunk (
+					this->curr_chunk.x, this->curr_chunk.z);
 				if (curr_chunk)
 					curr_chunk->remove_entity (this);
 				
@@ -310,44 +310,50 @@ namespace hCraft {
 	void
 	player::join_world (world* w)
 	{
+		std::lock_guard<std::mutex> guard {this->join_lock};
+		bool had_prev_world = (this->curr_world != nullptr);
+		
 		/* 
 		 * Unload chunks from previous world.
 		 */
 		if (this->curr_world)
 			{
-				this->curr_world->get_players ().remove (this);
+				// we first stop the player from moving.
+				entity_pos dest = this->get_pos ();
+				this->send (packet::make_player_pos_and_look (
+					dest.x, dest.y, dest.z, dest.y + 1.65, dest.r, dest.l, true));
+				this->set_pos (dest);
 				
 				// despawn self from other players (and vice-versa).
-				{
-					std::lock_guard<std::mutex> guard {this->visible_player_lock};
-					for (player *pl : this->visible_players)
+				player *me = this;
+				this->curr_world->get_players ().remove (this);
+				this->curr_world->get_players ().all (
+					[me] (player *pl)
 						{
-							this->despawn_from (pl);
-							pl->despawn_from (this);
-						}
-					this->visible_players.clear ();
-				}
+							if (me->visible_to (pl))
+								{
+									me->despawn_from (pl);
+									pl->despawn_from (me);
+								}
+						});
 				
-				for (auto cpos : this->known_chunks)
-					{
-						this->send (packet::make_empty_chunk (cpos.x, cpos.z));
-					}
-				this->known_chunks.clear ();
+				// this ensures smooth transitions between worlds:
+				this->stream_common_chunks (w);
 			}
 		
 		this->curr_world = w;
 		this->set_pos (w->get_spawn ());
 		this->curr_world->get_players ().add (this);
-		
 		this->stream_chunks ();
 		
 		entity_pos epos = this->get_pos ();
 		block_pos bpos = epos;
 		
 		this->send (packet::make_spawn_pos (bpos.x, bpos.y, bpos.z));
-		this->send (packet::make_player_pos_and_look (
-			epos.x, epos.y, epos.z, epos.y + 1.65, epos.r, epos.l, true));
-		
+		if (!had_prev_world)
+			this->send (packet::make_player_pos_and_look (
+				epos.x, epos.y, epos.z, epos.y + 1.65, epos.r, epos.l, true));
+			
 		log () << this->get_username () << " joined world \"" << w->get_name () << "\"" << std::endl;
 	}
 	
@@ -387,6 +393,7 @@ namespace hCraft {
 	void
 	player::stream_chunks (int radius)
 	{
+		std::lock_guard<std::mutex> wguard {this->world_lock};
 		std::multiset<chunk_pos, chunk_pos_less> to_load {chunk_pos_less (this->get_pos ())};
 		auto prev_chunks = this->known_chunks;
 		
@@ -458,6 +465,90 @@ namespace hCraft {
 		new_chunk->add_entity (this);
 		this->curr_chunk.set (center.x, center.z);
 	}
+	
+	/* 
+	 * Used when transitioning players between worlds.
+	 * This sends common chunks (shared by two worlds in their position) without
+	 * unloading them first.
+	 */
+	void
+	player::stream_common_chunks (world *wr, int radius)
+	{
+		std::lock_guard<std::mutex> wguard {this->world_lock};
+		
+		auto spawn_pos = wr->get_spawn ();
+		chunk_pos center = spawn_pos;
+		
+		chunk *prev_chunk = this->get_world ()->get_chunk (this->curr_chunk.x, this->curr_chunk.z);
+		if (prev_chunk)
+			prev_chunk->remove_entity (this);
+		
+		std::multiset<chunk_pos, chunk_pos_less> to_load {chunk_pos_less (spawn_pos)};
+		int r_half = radius / 2;
+		for (int cx = (center.x - r_half); cx <= (center.x + r_half); ++cx)
+			for (int cz = (center.z - r_half); cz <= (center.z + r_half); ++cz)
+				{
+					chunk_pos cpos = chunk_pos (cx, cz);
+					to_load.insert (cpos);
+				}
+		
+		
+		// keep chunks that are shared between both worlds, remove others.
+		for (auto itr = to_load.begin (); itr != to_load.end (); )
+			{
+				chunk_pos cpos = *itr;
+				if (std::find (this->known_chunks.begin (), this->known_chunks.end (),
+					cpos) == this->known_chunks.end ())
+					{
+						// not contained by both worlds, remove.
+						itr = to_load.erase (itr);
+					}
+				else
+					++ itr;
+			}
+		
+		for (auto cpos : to_load)
+			{
+				chunk *ch = wr->load_chunk (cpos.x, cpos.z);
+				this->send (packet::make_chunk (cpos.x, cpos.z, ch));
+				
+				// spawn self to other players and vice-versa.
+				player *me = this;
+				ch->all_entities (
+					[me] (entity *e)
+						{
+							if (e->get_type () == ET_PLAYER)
+								{
+									player* pl = dynamic_cast<player *> (e);
+									if (pl == me) return;
+									
+									me->spawn_to (pl);
+									pl->spawn_to (me);
+								}
+						});
+			}
+		
+		entity_pos dest = spawn_pos;
+		this->send (packet::make_player_pos_and_look (
+			dest.x, dest.y, dest.z, dest.y + 1.65, dest.r, dest.l, true));
+		this->set_pos (dest);
+		
+		// unload all other chunks
+		for (auto itr = this->known_chunks.begin (); itr != this->known_chunks.end (); )
+			{
+				chunk_pos cpos = *itr;
+				if (std::find (to_load.begin (), to_load.end (), cpos) == to_load.end ())
+					{
+						this->send (packet::make_empty_chunk (cpos.x, cpos.z));
+						itr = this->known_chunks.erase (itr);
+					}
+				else
+					++ itr;
+			}
+		
+		to_load.clear ();
+	}
+	
 //--
 	
 	
@@ -484,8 +575,10 @@ namespace hCraft {
 				}
 				
 				if (changed)
-					this->send (packet::make_player_pos_and_look (
-						dest.x, dest.y, dest.z, dest.y + 1.65, dest.r, dest.l, dest.on_ground));
+					{
+						this->send (packet::make_player_pos_and_look (
+							dest.x, dest.y, dest.z, dest.y + 1.65, dest.r, dest.l, dest.on_ground));
+					}
 			}
 		
 		entity_pos prev_pos = this->get_pos ();
@@ -549,10 +642,23 @@ namespace hCraft {
 	player::teleport_to (entity_pos dest)
 	{
 		block_pos b_dest = dest;
-		log (LT_DEBUG) << "Teleporting to {" << b_dest.x << " " << b_dest.y << " " << b_dest.z << "}" << std::endl;
 		this->move_to (dest);
 		this->send (packet::make_player_pos_and_look (
 			dest.x, dest.y, dest.z, dest.y + 1.65, dest.r, dest.l, dest.on_ground));
+	}
+	
+	/* 
+	 * Checks whether this player can be seen by player @{pl}.
+	 */
+	bool
+	player::visible_to (player *pl)
+	{
+		chunk_pos me_pos = this->get_pos ();
+		chunk_pos pl_pos = pl->get_pos ();
+		
+		return (
+			(utils::iabs (me_pos.x - pl_pos.x) <= player::chunk_radius ()) &&
+			(utils::iabs (me_pos.z - pl_pos.z) <= player::chunk_radius ()));
 	}
 	
 	
@@ -793,14 +899,14 @@ namespace hCraft {
 		// Used when testing
 		{
 			static const char *names[] =
-				{ "BizarreCake", "testdude", "testdude2", "testdude3" };
+				{ "BizarreCake", "testdude", "testdude2", "testdude3", "testdude4" };
 			static int index = 0, count = 5;
 			const char *cur = names[index++];
 			if (index >= count)
 				index = 0;
 			std::strcpy (username, cur);
-		}
-		*/
+		}*/
+		
 		
 		pl->log () << "Player " << username << " has logged in from @" << pl->get_ip () << std::endl;
 		std::strcpy (pl->username, username);

@@ -16,13 +16,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "misc.hpp"
+#include "miscc.hpp"
 #include "../server.hpp"
 #include "../player.hpp"
 #include <sstream>
-
-#include <thread> // DEBUG
-#include <chrono> // DEBUG
 
 
 namespace hCraft {

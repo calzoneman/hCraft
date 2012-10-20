@@ -73,6 +73,7 @@ namespace hCraft {
 		world *curr_world;
 		chunk_pos curr_chunk;
 		std::mutex world_lock;
+		std::mutex join_lock;
 		std::unordered_set<chunk_pos, chunk_pos_hash> known_chunks;
 		std::unordered_set<player *> visible_players;
 		std::mutex visible_player_lock;
@@ -134,6 +135,13 @@ namespace hCraft {
 		 * Moves the player to the specified position.
 		 */
 		void move_to (entity_pos dest);
+		
+		/* 
+		 * Used when transitioning players between worlds.
+		 * This sends common chunks (shared by two worlds in their position) without
+		 * unloading them first.
+		 */
+		void stream_common_chunks (world *wr, int radius = player::chunk_radius ());
 		
 	//----
 		
@@ -210,6 +218,11 @@ namespace hCraft {
 		 * Teleports the player to the given position.
 		 */
 		void teleport_to (entity_pos dest);
+		
+		/* 
+		 * Checks whether this player can be seen by player @{pl}.
+		 */
+		bool visible_to (player *pl);
 		
 		
 		

@@ -108,6 +108,34 @@ namespace hCraft {
 	};
 //----
 	
+	class hw_provider_naming: public world_provider_naming
+	{
+	public:
+		virtual const char* provider_name ()
+			{ return "hw"; }
+		
+		
+		/* 
+		 * Returns true if the format is stored within a separate directory
+		 * (like Anvil).
+		 */
+		virtual bool is_directory_format ()
+			{ return false; }
+		
+		/* 
+		 * Adds required prefixes, suffixes, etc... to the specified world name so
+		 * that the importer's claims_name () function returns true when passed to
+		 * it.
+		 */
+		virtual std::string make_name (const char *world_name);
+		
+		/* 
+		 * Checks whether the specified path name meets the format required by this
+		 * exporter (could be a name prefix, suffix, extension, etc...).
+		 */
+		virtual bool claims_name (const char *path);
+	};
+	
 	
 	/* 
 	 * World exporter for .hw (hCraft world) formats.
@@ -117,6 +145,8 @@ namespace hCraft {
 		std::string out_path;
 		hw_superblock *sblocks[4096];
 		std::fstream strm;
+		
+		world_information inf;
 		
 	public:
 		/* 
@@ -128,6 +158,14 @@ namespace hCraft {
 		 * Class destructor.
 		 */
 		~hw_provider ();
+		
+		
+		
+		/* 
+		 * Returns the name of this world provider.
+		 */
+		virtual const char* name ()
+			{ return "hw"; }
 		
 		
 		
@@ -146,17 +184,18 @@ namespace hCraft {
 		
 		
 		/* 
-		 * Adds required prefixes, suffixes, etc... to the specified world name so
-		 * that the importer's claims_name () function returns true when passed to
-		 * it.
+		 * Saves only the specified chunk.
 		 */
-		virtual std::string make_name (const char *world_name);
+		virtual void save (world& wr, chunk *ch, int x, int z);
 		
 		/* 
-		 * Checks whether the specified path name meets the format required by this
-		 * exporter (could be a name prefix, suffix, extension, etc...).
+		 * Saves the specified world without writing out any chunks.
+		 * NOTE: If a world file already exists at the destination path, an empty
+		 *       template will NOT be written out.
 		 */
-		virtual bool claims_name (const char *path);
+		virtual void save_empty (world &wr);
+		
+		
 		
 		/* 
 		 * Opens the file located at path @{path} and performs a check to see if it
@@ -164,26 +203,18 @@ namespace hCraft {
 		 */
 		virtual bool claims (const char *path);
 		
-		
-		
-		/* 
-		 * Saves only the specified chunk.
-		 */
-		virtual void save (world& wr, chunk *ch, int x, int z);
-		
-		/* 
-		 * Saves the specified world without writing out any chunks.
-		 */
-		virtual void save_empty (world &wr);
-		
-		
-		
 		/* 
 		 * Attempts to load the chunk located at the specified coordinates into
 		 * @{ch}. Returns true on success, and false if the chunk is not present
 		 * within the world file.
 		 */
 		virtual bool load (world &wr, chunk *ch, int x, int z);
+		
+		/* 
+		 * Loads world information into the specified structure.
+		 */
+		virtual const world_information& info ()
+			{ return this->inf; }
 	};
 }
 

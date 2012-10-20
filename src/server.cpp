@@ -523,13 +523,13 @@ namespace hCraft {
 		if (node && node->Type () == YAML::NodeType::Scalar)
 			{
 				*node >> str;
-				if (str.size () > 0 && str.size() <= 32)
+				if (world::is_valid_name (str.c_str ()))
 					std::strcpy (out.main_world, str.c_str ());
 				else
 					{
 						if (!error)
 							log (LT_ERROR) << "Config: at map \"server.general\":" << std::endl;
-						log (LT_INFO) << " - Scalar \"main-world\" must contain at no more than 32 characters." << std::endl;
+						log (LT_INFO) << " - Scalar \"main-world\" is not a valid world name." << std::endl;
 						error = true;
 					}
 			}
@@ -662,6 +662,8 @@ namespace hCraft {
 		this->db.execute (
 			"CREATE TABLE IF NOT EXISTS `players` (`id` INTEGER PRIMARY KEY "
 			"AUTOINCREMENT, `name` VARCHAR (16), `groups` VARCHAR(255));"
+			
+			"CREATE TABLE IF NOT EXISTS `autoloaded-worlds` (`name` VARCHAR(255));"
 			);
 	}
 	
@@ -743,6 +745,8 @@ namespace hCraft {
 		_add_command (this->perms, this->commands, "help");
 		_add_command (this->perms, this->commands, "me");
 		_add_command (this->perms, this->commands, "ping");
+		_add_command (this->perms, this->commands, "wcreate");
+		_add_command (this->perms, this->commands, "world");
 	}
 	
 	void
@@ -775,6 +779,7 @@ namespace hCraft {
 		group* grp_builder = groups.add (3, "builder");
 		grp_builder->set_color ('2');
 		grp_builder->inherit (grp_member);
+		grp_builder->add ("command.world.world");
 		
 		group* grp_designer = groups.add (4, "designer");
 		grp_designer->set_color ('b');
@@ -797,6 +802,7 @@ namespace hCraft {
 		group* grp_executive = groups.add (8, "executive");
 		grp_executive->set_color ('e');
 		grp_executive->inherit (grp_admin);
+		grp_executive->add ("command.world.wcreate");
 		
 		group* grp_owner = groups.add (9, "owner");
 		grp_owner->set_color ('6');
@@ -1077,20 +1083,99 @@ namespace hCraft {
 	server::init_worlds ()
 	{
 		mkdir ("worlds", 0744);
+		std::vector<std::string> to_load;
 		
-		/* 
-		 * Create and add the main world.
-		 */
+		world *main_world;
+		std::string prov_name;
 		
-		log () << "Creating main world." << std::endl;
-		world *main_world = new world (this->get_config ().main_world,
-			world_generator::create ("flatgrass"),
-			world_provider::create ("hw", "worlds", "main"));
-		main_world->set_size (32, 32);
+		log () << "Loading worlds:" << std::endl;
+		
+		// load main world
+		prov_name = world_provider::determine ("worlds",
+			this->get_config ().main_world);
+		if (prov_name.empty ())
+			{
+				// main world does not exist
+				log () << " - Main world does not exist, creating..." << std::endl;
+				main_world = new world (this->get_config ().main_world,
+					world_generator::create ("flatgrass"),
+					world_provider::create ("hw", "worlds", this->get_config ().main_world));
+				main_world->set_size (32, 32);
+			}
+		else
+			{
+				log () << " - Loading \"" << this->get_config ().main_world << "\"" << std::endl;
+				world_provider *prov = world_provider::create (prov_name.c_str (),
+					"worlds", this->get_config ().main_world);
+				if (!prov)
+					throw server_error ("failed to load main world (invalid provider)");
+				
+				const world_information& winf = prov->info ();
+				world_generator *gen = world_generator::create (winf.generator.c_str (), winf.seed);
+				if (!gen)
+					{
+						delete prov;
+						throw server_error ("failed to load main world (invalid generator)");
+					}
+				
+				main_world = new world (this->get_config ().main_world, gen, prov);
+				main_world->set_size (winf.width, winf.depth);
+			}
 		main_world->prepare_spawn (10);
 		main_world->start ();
 		this->add_world (main_world);
 		this->main_world = main_world;
+		
+		// load worlds from the autoload list.
+		{
+			sql::statement stmt = this->sql ().create (
+				"SELECT * FROM `autoloaded-worlds`");
+			while (stmt.step () == sql::row)
+				{
+					const char *world_name = (const char *)stmt.column_text (0);
+					to_load.push_back (world_name);
+				}
+		}
+		for (std::string& wname : to_load)
+			{
+				std::string prov_name = world_provider::determine ("worlds", wname.c_str ());
+				if (prov_name.empty ())
+					{
+						log (LT_WARNING) << " - World \"" << wname << "\" does not exist." << std::endl;
+						continue;
+					}
+				
+				world_provider *prov = world_provider::create (prov_name.c_str (),
+					"worlds", wname.c_str ());
+				if (!prov)
+					{
+						log (LT_ERROR) << "Failed to load world \"" << wname
+							<< "\": Invalid provider." << std::endl;
+						continue;
+					}
+				
+				const world_information& winf = prov->info ();
+				world_generator *gen = world_generator::create (winf.generator.c_str (), winf.seed);
+				if (!gen)
+					{
+						delete prov;
+						log (LT_ERROR) << "Failed to load world \"" << wname
+							<< "\": Invalid generator." << std::endl;
+						continue;
+					}
+				
+				log () << " - Loading \"" << wname << std::endl;
+				world *wr = new world (wname.c_str (), gen, prov);
+				wr->set_size (winf.width, winf.depth);
+				wr->prepare_spawn (10);
+				wr->start ();
+				if (!this->add_world (wr))
+					{
+						log (LT_ERROR) << "Failed to load world \"" << wname << "\": Already loaded." << std::endl;
+						delete wr;
+						continue;
+					}
+			}
 	}
 	
 	void

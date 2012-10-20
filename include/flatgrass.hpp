@@ -31,13 +31,23 @@ namespace hCraft {
 	class flatgrass_world_generator: public world_generator
 	{
 		std::minstd_rand rnd;
-		long seed;
+		long gen_seed;
 		
 	public:
 		/* 
 		 * Constructs a new flatgrass world generator.
 		 */
 		flatgrass_world_generator (long seed);
+		
+		
+		/* 
+		 * Returns the name of this generator.
+		 */
+		virtual const char* name ()
+			{ return "flatgrass"; }
+		
+		virtual long seed ()
+			{ return this->gen_seed; }
 		
 		
 		/* 
