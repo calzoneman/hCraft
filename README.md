@@ -17,6 +17,9 @@ The _currently_ implemented features are:
 *  The client can connect to the server.
 *  Movement and block modification are relayed between connected players.
 *  Worlds can be loaded from/saved to an experimental world format (*HWv1*).
+*  Players can easily switch between worlds using the /w command (Multiworld!).
+*  A permissions-like rank system.
+*  SQLite support.
 
 Building
 --------
