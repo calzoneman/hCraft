@@ -24,6 +24,7 @@
 #include "packet.hpp"
 #include "world.hpp"
 #include "rank.hpp"
+#include "messages.hpp"
 
 #include <queue>
 #include <unordered_set>
@@ -49,11 +50,16 @@ namespace hCraft {
 		struct bufferevent *bufev;
 		evutil_socket_t sock;
 		
+		rank rnk;
 		char ip[16];
-		char username[17];
 		bool logged_in;
 		bool handshake;
 		bool fail; // true if the player is no longer valid, and must be disposed of.
+		
+		char username[17];
+		char colored_username[24];
+		char nick[37]; // 36 chars max
+		char colored_nick[48];
 		
 		char kick_msg[384];
 		bool kicked;
@@ -79,9 +85,6 @@ namespace hCraft {
 		std::mutex visible_player_lock;
 		
 		std::ostringstream msgbuf;
-		
-	public:
-		rank rnk;
 		
 	private:
 		/* 
@@ -137,11 +140,12 @@ namespace hCraft {
 		void move_to (entity_pos dest);
 		
 		/* 
-		 * Used when transitioning players between worlds.
+		 * Used when transitioning players between worlds or teleporting.
 		 * This sends common chunks (shared by two worlds in their position) without
 		 * unloading them first.
 		 */
-		void stream_common_chunks (world *wr, int radius = player::chunk_radius ());
+		void stream_common_chunks (world *wr, entity_pos dest_pos,
+			int radius = player::chunk_radius ());
 		
 	//----
 		
@@ -155,6 +159,10 @@ namespace hCraft {
 		inline logger& get_logger () { return this->log; }
 		inline const char* get_ip () { return this->ip; }
 		inline const char* get_username () { return this->username; }
+		inline const char* get_colored_username () { return this->colored_username; }
+		inline const char* get_nickname () { return this->nick; }
+		inline const char* get_colored_nickname () { return this->colored_nick; }
+		inline const rank& get_rank () { return this->rnk; }
 		
 		inline world* get_world () { return this->curr_world; }
 		static constexpr int chunk_radius () { return 7; }
@@ -247,6 +255,20 @@ namespace hCraft {
 		void message_spaced (const std::string& msg, bool remove_from_first = false);
 		void message_nowrap (const char *msg);
 		void message_nowrap (const std::string& msg);
+		
+	//----
+		
+		/* 
+		 * Checks whether the player's rank has the given permission node.
+		 */
+		bool has (const char *perm);
+		
+		/* 
+		 * Utility function used by commands.
+		 * Returns true if the player has the given permission; otherwise, it prints
+		 * an error message to the player and return false.
+		 */
+		bool perm (const char *perm);
 	};
 }
 

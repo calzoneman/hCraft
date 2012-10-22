@@ -24,107 +24,47 @@
 namespace hCraft {
 	namespace commands {
 		
-		const char*
-		c_help::get_name ()
-			{ return "help"; }
-		
-		const char*
-		c_help::get_summary ()
-			{ return "Displays general information about the server or about a specific command."; }
-		
-		int
-		c_help::get_usage_count ()
-			{ return 3; }
-		
-		const char*
-		c_help::get_usage (int n)
-		{
-			static const char *usage[3] =
-				{
-					"/help",
-					"/help [--summary/-s] <command>",
-					"/help [--help/--summary]",
-				};
-			
-			return (n >= this->get_usage_count ()) ? "" : usage[n];
-		}
-		
-		const char*
-		c_help::get_usage_help (int n)
-		{
-			static const char *help[3] =
-				{
-					"Displays general information, tips, tricks and hints about "
-					"the server and/or the software that is running it.",
-					
-					"Shows a detailed description, usage patterns, and examples (if "
-					"available) about the specified command (<command>) if --summary is "
-					"not specified. Otherwise, only a brief summary about the command "
-					"is shown.",
-					
-					"Same as calling >/help< on >help< (\"/help [-s] help\")",
-				};
-			
-			return (n >= this->get_usage_count ()) ? "" : help[n];
-		}
-		
-		const char**
-		c_help::get_examples ()
-		{
-			static const char *examples[] =
-				{
-					"/help",
-					"/help cuboid",
-					"/help -s ping",
-					"/help --help",
-					nullptr,
-				};
-			
-			return examples;
-		}
-		
-		const char**
-		c_help::get_permissions ()
-		{
-			static const char *perms[] =
-				{
-					"command.info.help",
-					nullptr,
-				};
-			
-			return perms;
-		}
-		
-		
-		
-	//----
-		
+		/* 
+		 * /help -
+		 * 
+		 * When executed without any arguments, the command displays general tips,
+		 * tricks and hints about what the player can do in the server. Otherwise,
+		 * it displays detailed information about the supplied command.
+		 * 
+		 * Permissions:
+		 *   - command.info.help
+		 *       To execute the command.
+		 */
 		void
 		c_help::execute (player *pl, command_reader& reader)
 		{
-			reader.add_option ("help", "h", false, false, false);
-			reader.add_option ("summary", "s", false, false, false);
-			if (!reader.parse_args (pl))
+			if (!pl->perm ("command.info.help"))
 				return;
 			
-			if (reader.get_option ("help")->found)
-				{ this->show_help (pl); return; }
-			else if (reader.get_option ("summary")->found && reader.no_args ())
+			// we handle --help and --summary ourselves, instead of passing the work
+			// to the command reader.
+			reader.add_option ("help", "h");
+			reader.add_option ("summary", "s");
+			if (!reader.parse_args (this, pl, false))
+				return;
+			
+			if (reader.opt ("summary")->found () && reader.no_args ())
 				{ this->show_summary (pl); return; }
+			else if (reader.opt ("help")->found ())
+				{ this->show_help (pl); return; }
 			
 			if (reader.arg_count () > 1)
 				{ this->show_usage (pl); return; }
-			
-			if (reader.arg_count () == 1)
+			else if (reader.arg_count () == 1)
 				{
 					command *cmd = pl->get_server ().get_commands ().find (reader.arg (0).c_str ());
-					if (!cmd)
+					if (!cmd || !pl->has (cmd->get_exec_permission ()))
 						{
 							pl->message ("§c * §eUnable to find help for§f: §c" + reader.arg (0));
 							return;
 						}
 					
-					if (reader.get_option ("summary")->found)
+					if (reader.opt ("summary")->found ())
 						cmd->show_summary (pl);
 					else
 						cmd->show_help (pl);

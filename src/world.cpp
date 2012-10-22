@@ -26,8 +26,6 @@
 #include <cstring>
 #include <cctype>
 
-#include <iostream> // DEBUG
-
 
 namespace hCraft {
 	
@@ -66,6 +64,7 @@ namespace hCraft {
 	 */
 	world::~world ()
 	{
+		this->stop ();
 		delete this->players;
 		
 		delete this->gen;
@@ -560,9 +559,6 @@ namespace hCraft {
 	world::queue_update (int x, int y, int z, unsigned short id,
 		unsigned char meta, player *pl)
 	{
-		std::cout << "[" << x << ", " << y << ", " << z << "] -> \n"
-							<< "  -> x / 16 = " << utils::div (x, 16) << ", x % 16 = " << utils::mod (x, 16) << "\n"
-							<< "  -> z / 16 = " << utils::div (z, 16) << ", z % 16 = " << utils::mod (z, 16) << std::endl;
 		std::lock_guard<std::recursive_mutex> guard {this->update_lock};
 		this->updates.emplace (x, y, z, id, meta, pl);
 	}

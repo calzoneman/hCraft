@@ -26,20 +26,69 @@ namespace hCraft {
 	namespace commands {
 	
 		/* 
+		 * /ping -
+		 * 
 		 * Displays to the player how much time it takes for the server to both
 		 * send and retreive a single keep alive (ping: 0x00) packet (in ms).
+		 * 
+		 * Permissions:
+		 *   - command.misc.ping
+		 *       Needed to execute the command.
 		 */
 		class c_ping: public command
 		{
 		public:
-			virtual const char* get_name ();
-			virtual const char* get_summary ();
-			virtual int get_usage_count ();
-			virtual const char* get_usage (int n);
-			virtual const char* get_usage_help (int n);
-			virtual const char** get_examples ();
-			virtual const char** get_permissions ();
-			virtual void execute (player *pl, command_reader& reader);
+			const char* get_name () { return "ping"; }
+		
+			const char*
+			get_summary ()
+				{ return "Checks how much time it takes (in milliseconds) to ping and "
+								 "get a response from a player."; }
+		
+			const char**
+			get_usage ()
+			{
+				static const char *usage[] =
+					{
+						"/ping",
+						"/ping <player>",
+						"/ping [--help/--summary]",
+						nullptr,
+					};
+				return usage;
+			}
+		
+			const char**
+			get_help ()
+			{
+				static const char *help[] =
+					{
+						"Displays the amount of time (in milliseconds) to both send and retreive"
+						"a ping packet (keep alive) to/from the calling player.",
+				
+						"Measures ping time for <player> instead.",
+				
+						"Same as calling >/help< on >ping< (\"/help [-s] ping\")",
+					};
+				return help;
+			}
+		
+			const char**
+			get_examples ()
+			{
+				static const char *examples[] =
+					{
+						"/ping",
+						"/ping user1234",
+						nullptr,
+					};
+				return examples;
+			}
+		
+			const char* get_exec_permission () { return "command.misc.ping"; }
+		
+		//----
+			void execute (player *pl, command_reader& reader);
 		};
 	}
 }

@@ -26,20 +26,67 @@ namespace hCraft {
 	namespace commands {
 	
 		/* 
+		 * /me -
+		 * 
 		 * Broadcasts an IRC-style action message (in the form of: * user1234
 		 * <message>).
+		 * 
+		 * Permissions:
+		 *   - command.chat.me
+		 *       Needed to execute the command.
 		 */
 		class c_me: public command
 		{
 		public:
-			virtual const char* get_name ();
-			virtual const char* get_summary ();
-			virtual int get_usage_count ();
-			virtual const char* get_usage (int n);
-			virtual const char* get_usage_help (int n);
-			virtual const char** get_examples ();
-			virtual const char** get_permissions ();
-			virtual void execute (player *pl, command_reader& reader);
+			const char* get_name () { return "me"; }
+			
+			const char*
+			get_summary ()
+				{ return "Broadcasts an IRC-style action message to all players in the "
+								"same world."; }
+			
+			const char**
+			get_usage ()
+			{
+				static const char *usage[] =
+					{
+						"/me <action>",
+						"/me [--help/--summary]",
+						nullptr,
+					};
+				return usage;
+			}
+			
+			const char**
+			get_help ()
+			{
+				static const char *help[] =
+					{
+						"Broadcasts an IRC-style action message (in the form of: \"* player action\" "
+						"to all players in the same world).",
+					
+						"Same as calling >/help< on >me< (\"/help [-s] me\")",
+						nullptr,
+					};
+				return help;
+			}
+			
+			const char**
+			get_examples ()
+			{
+				static const char *examples[] =
+					{
+						"/me wants cookies",
+						"/me shrugs",
+						nullptr,
+					};
+				return examples;
+			}
+			
+			const char* get_exec_permission () { return "command.chat.me"; }
+			
+		//----
+			void execute (player *pl, command_reader& reader);
 		};
 	}
 }

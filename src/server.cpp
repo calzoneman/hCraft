@@ -661,9 +661,9 @@ namespace hCraft {
 		// 
 		this->db.execute (
 			"CREATE TABLE IF NOT EXISTS `players` (`id` INTEGER PRIMARY KEY "
-			"AUTOINCREMENT, `name` VARCHAR (16), `groups` VARCHAR(255));"
+			"AUTOINCREMENT, `name` TEXT, `groups` TEXT, `nick` TEXT);"
 			
-			"CREATE TABLE IF NOT EXISTS `autoloaded-worlds` (`name` VARCHAR(255));"
+			"CREATE TABLE IF NOT EXISTS `autoloaded-worlds` (`name` TEXT);"
 			);
 	}
 	
@@ -729,11 +729,11 @@ namespace hCraft {
 		if (cmd)
 			{
 				dest->add (cmd);
-				
+				/*
 				// register permissions
 				const char **perms = cmd->get_permissions ();
 				while (*perms != nullptr)
-					perm_man.add (*perms++);
+					perm_man.add (*perms++);*/
 			}
 	}
 	
@@ -746,7 +746,9 @@ namespace hCraft {
 		_add_command (this->perms, this->commands, "me");
 		_add_command (this->perms, this->commands, "ping");
 		_add_command (this->perms, this->commands, "wcreate");
+		_add_command (this->perms, this->commands, "wload");
 		_add_command (this->perms, this->commands, "world");
+		_add_command (this->perms, this->commands, "tp");
 	}
 	
 	void
@@ -780,6 +782,7 @@ namespace hCraft {
 		grp_builder->set_color ('2');
 		grp_builder->inherit (grp_member);
 		grp_builder->add ("command.world.world");
+		grp_builder->add ("command.world.tp");
 		
 		group* grp_designer = groups.add (4, "designer");
 		grp_designer->set_color ('b');
@@ -798,11 +801,13 @@ namespace hCraft {
 		grp_admin->set_color ('4');
 		grp_admin->inherit (grp_architect);
 		grp_admin->inherit (grp_moderator);
+		grp_builder->add ("command.world.tp.others");
 		
 		group* grp_executive = groups.add (8, "executive");
 		grp_executive->set_color ('e');
 		grp_executive->inherit (grp_admin);
 		grp_executive->add ("command.world.wcreate");
+		grp_executive->add ("command.world.wload");
 		
 		group* grp_owner = groups.add (9, "owner");
 		grp_owner->set_color ('6');
@@ -845,6 +850,8 @@ namespace hCraft {
 				emit << YAML::Key << "color" << YAML::Value << grp->get_color ();
 				emit << YAML::Key << "prefix" << YAML::Value << grp->get_prefix ();
 				emit << YAML::Key << "suffix" << YAML::Value << grp->get_suffix ();
+				emit << YAML::Key << "mprefix" << YAML::Value << grp->get_mprefix ();
+				emit << YAML::Key << "msuffix" << YAML::Value << grp->get_msuffix ();
 				emit << YAML::Key << "can-chat" << YAML::Value << grp->can_chat ();
 				emit << YAML::Key << "can-build" << YAML::Value << grp->can_build ();
 				emit << YAML::Key << "can-move" << YAML::Value << grp->can_move ();
@@ -880,7 +887,9 @@ namespace hCraft {
 		int grp_power;
 		char grp_color;
 		std::string grp_prefix;
+		std::string grp_mprefix;
 		std::string grp_suffix;
+		std::string grp_msuffix;
 		bool grp_can_build;
 		bool grp_can_move;
 		bool grp_can_chat;
@@ -931,6 +940,15 @@ namespace hCraft {
 					grp_prefix.resize (32);
 			}
 		
+		// mprefix
+		node = group_node.FindValue ("mprefix");
+		if (node)
+			{
+				*node >> grp_mprefix;
+				if (grp_mprefix.size () > 32)
+					grp_mprefix.resize (32);
+			}
+		
 		// suffix
 		node = group_node.FindValue ("suffix");
 		if (node)
@@ -938,6 +956,15 @@ namespace hCraft {
 				*node >> grp_suffix;
 				if (grp_suffix.size () > 32)
 					grp_suffix.resize (32);
+			}
+		
+		// msuffix
+		node = group_node.FindValue ("msuffix");
+		if (node)
+			{
+				*node >> grp_msuffix;
+				if (grp_msuffix.size () > 32)
+					grp_msuffix.resize (32);
 			}
 		
 		// can-build
@@ -977,7 +1004,9 @@ namespace hCraft {
 		group *grp = groups.add (grp_power, group_name.c_str ());
 		grp->set_color (grp_color);
 		grp->set_prefix (grp_prefix.c_str ());
+		grp->set_mprefix (grp_mprefix.c_str ());
 		grp->set_suffix (grp_suffix.c_str ());
+		grp->set_msuffix (grp_msuffix.c_str ());
 		grp->can_build (grp_can_build);
 		grp->can_move (grp_can_move);
 		grp->can_chat (grp_can_chat);

@@ -27,9 +27,9 @@
 
 namespace hCraft {
 	
-#define PERM_FLAG_ALL     0x00000001U
-#define PERM_FLAG_NONE    0x00000002U
-#define PERM_ID_START     3
+#define PERM_FLAG_ALL		0x00000001U
+#define PERM_FLAG_NONE	0x00000002U
+#define PERM_ID_START		3
 
 	/* 
 	 * Represents a permission node (<comp1>.<comp2>. ... .<compN>) in a compact
@@ -38,12 +38,12 @@ namespace hCraft {
 	class permission
 	{
 	public:	
-		int nodes[4];
+		int nodes[5];
 		
 	public:
 		permission ()
 		{
-			nodes[0] = nodes[1] = nodes[2] = nodes[3] = PERM_ID_START;
+			nodes[0] = nodes[1] = nodes[2] = nodes[3] = nodes[4] = -1;
 		}
 		
 		inline bool valid () { return this->nodes[0] != -1; }
@@ -53,7 +53,8 @@ namespace hCraft {
 			{ return (this->nodes[0] == other.nodes[0]) &&
 							 (this->nodes[1] == other.nodes[1]) &&
 							 (this->nodes[2] == other.nodes[2]) &&
-							 (this->nodes[3] == other.nodes[3]); }
+							 (this->nodes[3] == other.nodes[3]) &&
+							 (this->nodes[4] == other.nodes[4]); }
 	};
 	
 	
@@ -62,8 +63,8 @@ namespace hCraft {
 	 */
 	class permission_manager
 	{
-		std::unordered_map<std::string, int> id_maps[4];
-		std::vector<std::string> name_maps[4];
+		std::unordered_map<std::string, int> id_maps[5];
+		std::vector<std::string> name_maps[5];
 		
 	public:
 		/* 
@@ -109,7 +110,8 @@ namespace std {
 				int_hash (perm.nodes[0]) +
 				int_hash (perm.nodes[1]) +
 				int_hash (perm.nodes[2]) +
-				int_hash (perm.nodes[3]));
+				int_hash (perm.nodes[3]) +
+				int_hash (perm.nodes[4]));
 		}
 	};
 }

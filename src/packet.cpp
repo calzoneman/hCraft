@@ -630,8 +630,8 @@ namespace hCraft {
 		pack->put_int ((int)(x * 32.0));
 		pack->put_int ((int)(y * 32.0));
 		pack->put_int ((int)(z * 32.0));
-		pack->put_byte ((unsigned char)(r / 360.0f * 255.0));
-		pack->put_byte ((unsigned char)(l / 360.0f * 255.0));
+		pack->put_byte ((unsigned char)(std::fmod (std::floor (r), 360.0f) / 360.0 * 256.0));
+		pack->put_byte ((unsigned char)(std::fmod (std::floor (l), 360.0f) / 360.0 * 256.0));
 		pack->put_short (current_item);
 		encode_entity_metadata (pack, meta);
 		

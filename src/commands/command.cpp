@@ -35,11 +35,20 @@
 
 namespace hCraft {
 	
+	// info commands:
 	static command* create_c_help () { return new commands::c_help (); }
+	
+	// chat commands:
 	static command* create_c_me () { return new commands::c_me (); }
+	
+	// misc commands:
 	static command* create_c_ping () { return new commands::c_ping (); }
+	
+	// world commands:
 	static command* create_c_wcreate () { return new commands::c_wcreate (); }
+	static command* create_c_wload () { return new commands::c_wload (); }
 	static command* create_c_world () { return new commands::c_world (); }
+	static command* create_c_tp () { return new commands::c_tp (); }
 	
 	/* 
 	 * Returns a new instance of the command named @{name}.
@@ -52,7 +61,9 @@ namespace hCraft {
 			{ "me", create_c_me },
 			{ "ping", create_c_ping },
 			{ "wcreate", create_c_wcreate },
+			{ "wload", create_c_wload },
 			{ "world", create_c_world },
+			{ "tp", create_c_tp },
 			};
 		
 		auto itr = creators.find (name);
@@ -70,24 +81,18 @@ namespace hCraft {
 	const char**
 	command::get_aliases ()
 	{
-		static const char* arr[] = {
-			nullptr,
-		};
+		static const char* arr[] = { nullptr };
 		return arr;
 	}
 	
 	
 	
 //----
-	
-	bool
-	command_reader::option::is_int ()
+
+	static bool
+	_is_int (const std::string& str)
 	{
-		if (!this->got_arg)
-			return false;
-		
 		int i = 0;
-		std::string& str = this->as_string ();
 		if (str[0] == '-')
 			{
 				if (str.size () == 1)
@@ -105,14 +110,42 @@ namespace hCraft {
 		return true;
 	}
 	
-	int
-	command_reader::option::as_int ()
+	static int
+	_to_int (const std::string& str)
 	{
-		std::string& str = this->as_string ();
 		std::istringstream ss {str};
 		int num;
 		ss >> num;
 		return num;
+	}
+	
+	
+	bool
+	command_reader::option::is_int () const 
+	{
+		if (!this->found_arg)
+			return false;
+		return _is_int (this->as_string ());
+	}
+	
+	int
+	command_reader::option::as_int () const 
+	{
+		return _to_int (this->as_string ());
+	}
+	
+	
+	
+	bool
+	command_reader::arg_is_int (int index)
+	{
+		return _is_int (this->arg (index));
+	}
+	
+	int
+	command_reader::arg_as_int (int index)
+	{
+		return _to_int (this->arg (index));
 	}
 	
 	
@@ -159,15 +192,15 @@ namespace hCraft {
 	command_reader::add_option (const char *long_name, const char *short_name,
 		bool has_arg, bool arg_required, bool opt_required)
 	{
-		this->options.push_back ({long_name, short_name, has_arg, arg_required,
-			opt_required, false, "", false});
+		this->options.emplace_back (long_name, short_name, has_arg, arg_required,
+			opt_required);
 	}
 	
 	/* 
 	 * Finds and returns the option with the given long name.
 	 */
 	command_reader::option*
-	command_reader::get_option (const char *long_name)
+	command_reader::opt (const char *long_name)
 	{
 		for (option& opt : this->options)
 			if (std::strcmp (opt.lname, long_name) == 0)
@@ -229,8 +262,14 @@ namespace hCraft {
 	 * to player @{err}.
 	 */
 	bool
-	command_reader::parse_args (player *err)
+	command_reader::parse_args (command *cmd, player *err, bool handle_help)
 	{
+		if (handle_help)
+			{
+				this->add_option ("help", "h");
+				this->add_option ("summary", "s");
+			}
+		
 		std::istringstream ss {this->args};
 		std::string str;
 		std::string opt_name;
@@ -266,7 +305,7 @@ namespace hCraft {
 								auto itr = std::find_if (this->options.begin (), this->options.end (),
 									[&opt_name] (const option& opt) -> bool
 										{
-											return std::strcmp (opt.lname, opt_name.c_str ()) == 0;
+											return std::strcmp (opt.long_name (), opt_name.c_str ()) == 0;
 										});
 								if (itr == this->options.end ())
 									{
@@ -275,7 +314,7 @@ namespace hCraft {
 									}
 								
 								option& opt = *itr;
-								opt.found = true;
+								opt.was_found = true;
 								if (opt.has_arg)
 									{
 										if (has_arg)
@@ -288,7 +327,7 @@ namespace hCraft {
 													}
 												
 												opt.arg = std::move (opt_arg);
-												opt.got_arg = true;
+												opt.found_arg = true;
 											}
 										else if (opt.arg_req)
 											{
@@ -312,7 +351,7 @@ namespace hCraft {
 										auto itr = std::find_if (this->options.begin (), this->options.end (),
 											[optc] (const option& opt) -> bool
 												{
-													return (opt.sname && opt.sname[0] == optc);
+													return (opt.short_name () && opt.short_name ()[0] == optc);
 												});
 										if (itr == this->options.end ())
 											{
@@ -321,7 +360,7 @@ namespace hCraft {
 											}
 										
 										option& opt = *itr;
-										opt.found = true;
+										opt.was_found = true;
 										
 										if (opt.has_arg)
 											{
@@ -346,7 +385,7 @@ namespace hCraft {
 															}
 														else
 															{
-																opt.got_arg = true;
+																opt.found_arg = true;
 																if (str[0] == '"')
 																	{
 																		if (!_read_string (ss, str, str, err))
@@ -389,11 +428,19 @@ namespace hCraft {
 		
 		for (option& opt : this->options)
 			{
-				if (opt.required && !opt.found)
+				if (opt.required && !opt.was_found)
 					{
 						err->message ("§c * §eRequired argument not found§f: §c--" + std::string (opt.lname));
 						return false;
 					}
+			}
+		
+		if (handle_help)
+			{
+				if (this->opt ("summary")->found ())
+					{ cmd->show_summary (err); return false; }
+				else if (this->opt ("help")->found ())
+					{ cmd->show_help (err); return false; }
 			}
 		
 		return true;
@@ -593,35 +640,40 @@ namespace hCraft {
 	void
 	command::show_usage (player *pl)
 	{
-		int usage_count = this->get_usage_count ();
+		const char **usages = this->get_usage ();
+		const char **usage  = usages;
 		int i;
 		
 		pl->message ("§6Usage for command §e" + std::string (this->get_name ()) + "§f:");
-		for (i = 0; i < usage_count; ++i)
-			pl->message_spaced ("    " + color_string (this->get_usage (i)));
+		for (; *usage; ++usage)
+			pl->message_spaced ("    " + color_string (*usage));
 	}
 	
 	void
 	command::show_help (player *pl)
 	{
-		int usage_count = this->get_usage_count ();
-		int i;
+		const char **usages = this->get_usage ();
+		const char **usage  = usages;
+		
+		const char **helpa  = this->get_help ();
+		const char **help   = helpa;
 		
 		std::ostringstream ss;
+		int i;
 		
 		pl->message ("§6Showing help for command §e" + std::string (this->get_name ()) + "§f:");
-		for (i = 0; i < usage_count; ++i)
+		for (; *usage && *help; ++ usage, ++ help)
 			{
-				ss << "  §f(§c" << (i + 1) << "§f): " << color_string (this->get_usage (i));
+				ss << "  §f(§c" << (i + 1) << "§f): " << color_string (*usage);
 				pl->message_spaced (ss.str ());
 				ss.str (std::string ()); ss.clear ();
 				
-				ss << "    " << color_string (this->get_usage_help (i));
+				ss << "    " << color_string (*help);
 				pl->message_spaced (ss.str ());
 				ss.str (std::string ()); ss.clear ();
 			}
 		
-		if (this->get_aliases ()[0] != nullptr)
+		if (this->get_aliases ()[0])
 			{
 				std::ostringstream ss;
 				ss << "§8Aliases§7: ";
@@ -667,6 +719,8 @@ namespace hCraft {
 		this->commands.clear ();
 	}
 	
+	
+	
 	/* 
 	 * Adds the specified command to the list.
 	 */
@@ -693,7 +747,8 @@ namespace hCraft {
 	}
 	
 	/* 
-	 * Finds the command that has the specified name (case-sensitive).
+	 * Finds the command that has the specified name (case-sensitive)
+	 * (also checks aliases).
 	 */
 	command*
 	command_list::find (const char *name)

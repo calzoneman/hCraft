@@ -52,6 +52,9 @@ namespace hCraft {
 		
 		this->username[0] = '@';
 		std::strcpy (this->username + 1, this->ip);
+		std::strcpy (this->nick, this->username);
+		std::strcpy (this->colored_username, this->username);
+		std::strcpy (this->colored_nick, this->nick);
 		
 		this->logged_in = false;
 		this->fail = false;
@@ -255,9 +258,9 @@ namespace hCraft {
 				if (this->handshake && !silent)
 					{
 						std::ostringstream ss;
-						ss << "§e[§c-§e] §" << this->rnk.main_group->get_color () << this->get_username ()
+						ss << "§e[§c-§e] §" << this->get_rank ().main_group->get_color () << this->get_username ()
 							<< " §ehas left the server";
-						this->get_server ().get_players ().message (ss.str ());
+						this->get_server ().get_players ().message_nowrap (ss.str ());
 					}
 				
 				chunk *curr_chunk = this->curr_world->get_chunk (
@@ -345,7 +348,7 @@ namespace hCraft {
 						});
 				
 				// this ensures smooth transitions between worlds:
-				this->stream_common_chunks (w);
+				this->stream_common_chunks (w, w->get_spawn ());
 			}
 		
 		this->curr_world = w;
@@ -417,6 +420,29 @@ namespace hCraft {
 					prev_chunks.erase (cpos);
 				}
 		
+		for (auto cpos : to_load)
+			{
+				this->known_chunks.insert (cpos);
+				chunk *ch = this->get_world ()->load_chunk (cpos.x, cpos.z);
+				this->send (packet::make_chunk (cpos.x, cpos.z, ch));
+				
+				// spawn self to other players and vice-versa.
+				player *me = this;
+				ch->all_entities (
+					[me] (entity *e)
+						{
+							if (e->get_type () == ET_PLAYER)
+								{
+									player* pl = dynamic_cast<player *> (e);
+									if (pl == me) return;
+									
+									me->spawn_to (pl);
+									pl->spawn_to (me);
+								}
+						});
+			}
+		to_load.clear ();
+		
 		for (auto cpos : prev_chunks)
 			{
 				this->known_chunks.erase (cpos);
@@ -441,29 +467,6 @@ namespace hCraft {
 			}
 		prev_chunks.clear ();
 		
-		for (auto cpos : to_load)
-			{
-				this->known_chunks.insert (cpos);
-				chunk *ch = this->get_world ()->load_chunk (cpos.x, cpos.z);
-				this->send (packet::make_chunk (cpos.x, cpos.z, ch));
-				
-				// spawn self to other players and vice-versa.
-				player *me = this;
-				ch->all_entities (
-					[me] (entity *e)
-						{
-							if (e->get_type () == ET_PLAYER)
-								{
-									player* pl = dynamic_cast<player *> (e);
-									if (pl == me) return;
-									
-									me->spawn_to (pl);
-									pl->spawn_to (me);
-								}
-						});
-			}
-		to_load.clear ();
-		
 		chunk *prev_chunk = this->get_world ()->get_chunk (this->curr_chunk.x, this->curr_chunk.z);
 		if (prev_chunk)
 			prev_chunk->remove_entity (this);
@@ -474,16 +477,16 @@ namespace hCraft {
 	}
 	
 	/* 
-	 * Used when transitioning players between worlds.
+	 * Used when transitioning players between worlds or teleporting.
 	 * This sends common chunks (shared by two worlds in their position) without
 	 * unloading them first.
 	 */
 	void
-	player::stream_common_chunks (world *wr, int radius)
+	player::stream_common_chunks (world *wr, entity_pos dest_pos, int radius)
 	{
 		std::lock_guard<std::mutex> wguard {this->world_lock};
 		
-		auto spawn_pos = wr->get_spawn ();
+		auto spawn_pos = dest_pos;
 		chunk_pos center = spawn_pos;
 		
 		chunk *prev_chunk = this->get_world ()->get_chunk (this->curr_chunk.x, this->curr_chunk.z);
@@ -498,7 +501,6 @@ namespace hCraft {
 					chunk_pos cpos = chunk_pos (cx, cz);
 					to_load.insert (cpos);
 				}
-		
 		
 		// keep chunks that are shared between both worlds, remove others.
 		for (auto itr = to_load.begin (); itr != to_load.end (); )
@@ -521,18 +523,21 @@ namespace hCraft {
 				
 				// spawn self to other players and vice-versa.
 				player *me = this;
-				ch->all_entities (
-					[me] (entity *e)
-						{
-							if (e->get_type () == ET_PLAYER)
+				if (this->known_chunks.find (cpos) == this->known_chunks.end ())
+					{
+						ch->all_entities (
+							[me] (entity *e)
 								{
-									player* pl = dynamic_cast<player *> (e);
-									if (pl == me) return;
+									if (e->get_type () == ET_PLAYER)
+										{
+											player* pl = dynamic_cast<player *> (e);
+											if (pl == me) return;
 									
-									me->spawn_to (pl);
-									pl->spawn_to (me);
-								}
-						});
+											me->spawn_to (pl);
+											pl->spawn_to (me);
+										}
+								});
+					}
 			}
 		
 		entity_pos dest = spawn_pos;
@@ -737,11 +742,11 @@ namespace hCraft {
 		
 		std::string col_name;
 		col_name.append ("§");
-		col_name.push_back (this->rnk.main_group->get_color ());
+		col_name.push_back (this->get_rank ().main_group->get_color ());
 		col_name.append (this->get_username ());
 		
 		char ping_name[24];
-		get_ping_name (this->rnk.main_group->get_color (), this->get_username (),
+		get_ping_name (this->get_rank ().main_group->get_color (), this->get_username (),
 			ping_name);
 		
 		entity_pos me_pos = this->get_pos ();
@@ -769,7 +774,7 @@ namespace hCraft {
 			return;
 		
 		char ping_name[24];
-		get_ping_name (this->rnk.main_group->get_color (), this->get_username (),
+		get_ping_name (this->get_rank ().main_group->get_color (), this->get_username (),
 			ping_name);
 		
 		pl->send (packet::make_destroy_entity (this->get_eid ()));
@@ -840,6 +845,35 @@ namespace hCraft {
 //----
 	
 	/* 
+	 * Checks whether the player's rank has the given permission node.
+	 */
+	bool
+	player::has (const char *perm)
+	{
+		return this->get_rank ().has (perm);
+	}
+	
+	/* 
+	 * Utility function used by commands.
+	 * Returns true if the player has the given permission; otherwise, it prints
+	 * an error message to the player and return false.
+	 */
+	bool
+	player::perm (const char *perm)
+	{
+		if (this->has (perm))
+			return true;
+		
+		this->message_nowrap (messages::insufficient_permissions (
+			this->get_server ().get_groups (), perm));
+		return false;
+	}
+	
+	
+	
+//----
+	
+	/* 
 	 * Loads information about the player from the server's SQL database.
 	 */
 	void
@@ -851,9 +885,8 @@ namespace hCraft {
 		
 		if (stmt.step () == sql::row)
 			{
-				const char *group_str = (const char *)stmt.column_text (2);
-				
-				this->rnk.set (group_str, this->get_server ().get_groups ());
+				this->rnk.set ((const char *)stmt.column_text (2), this->get_server ().get_groups ());
+				std::strcpy (this->nick, (const char *)stmt.column_text (3));
 			}
 		else
 			{
@@ -861,12 +894,21 @@ namespace hCraft {
 				std::string grp_str;
 				this->rnk.get_string (grp_str);
 				
+				std::strcpy (this->nick, this->username);
+				
 				sql::statement stmt = this->get_server ().sql ().create (
-					"INSERT INTO `players` (`name`, `groups`) VALUES (?, ?)");
+					"INSERT INTO `players` (`name`, `groups`, `nick`) VALUES (?, ?, ?)");
 				stmt.bind_text (1, this->get_username ());
 				stmt.bind_text (2, grp_str.c_str (), -1, sql::dctor_transient);
+				stmt.bind_text (3, this->get_nickname ());
 				stmt.execute ();
 			}
+		
+		std::string str;
+		str.append ("§");
+		str.push_back (this->rnk.main ()->get_color ());
+		str.append (this->nick);
+		std::strcpy (this->colored_nick, str.c_str ());
 	}
 	
 	
@@ -915,7 +957,7 @@ namespace hCraft {
 		
 		// update self
 		char ping_name[24];
-		get_ping_name (pl->rnk.main_group->get_color (), pl->get_username (),
+		get_ping_name (pl->get_rank ().main_group->get_color (), pl->get_username (),
 			ping_name);
 		pl->send (packet::make_player_list_item (ping_name, true, pl->ping_time_ms));
 		
@@ -925,7 +967,7 @@ namespace hCraft {
 			[me] (player *pl)
 				{
 					char ping_name[24];
-					get_ping_name (me->rnk.main_group->get_color (), me->get_username (),
+					get_ping_name (me->get_rank ().main_group->get_color (), me->get_username (),
 						ping_name);
 					pl->send (packet::make_player_list_item (ping_name, true, me->ping_time_ms));
 				});
@@ -971,6 +1013,14 @@ namespace hCraft {
 		pl->load_data ();
 		pl->handshake = true;
 		
+		{
+			std::string str;
+			str.append ("§");
+			str.push_back (pl->rnk.main ()->get_color ());
+			str.append (pl->username);
+			std::strcpy (pl->colored_username, str.c_str ());
+		}
+		
 		if (!pl->get_server ().done_connecting (pl))
 			return;
 		
@@ -982,16 +1032,16 @@ namespace hCraft {
 		// insert self into player list ping
 		{
 			char ping_name[24];
-			get_ping_name (pl->rnk.main_group->get_color (), pl->get_username (),
+			get_ping_name (pl->get_rank ().main_group->get_color (), pl->get_username (),
 				ping_name);
 			pl->send (packet::make_player_list_item (ping_name, true, pl->ping_time_ms));
 		}
 		
 		{
 			std::ostringstream ss;
-			ss << "§e[§a+§e] §" << pl->rnk.main_group->get_color () << pl->get_username ()
-				<< " §ehas joined the server§f!";
-			pl->get_server ().get_players ().message (ss.str ());
+			ss << "§e[§a+§e] " << pl->get_colored_nickname ()
+				 << " §ehas joined the server§f!";
+			pl->get_server ().get_players ().message_nowrap (ss.str ());
 		}
 		pl->join_world (pl->get_server ().get_main_world ());
 	}
@@ -1053,50 +1103,6 @@ namespace hCraft {
 						return;
 					}
 				
-				{
-					const char** perms = cmd->get_permissions ();
-					const char** perm  = perms;
-					for (; *perm; ++perm)
-						{
-							if (!pl->rnk.has (*perm))
-								{
-									// find the least powerful group that has this permission.
-									group *sgrp = nullptr;
-									auto& all_groups = pl->get_server ().get_groups ();
-									std::vector<group *> sorted_groups;
-									for (auto itr = all_groups.begin (); itr != all_groups.end (); ++itr)
-										sorted_groups.push_back (itr->second);
-									std::sort (sorted_groups.begin (), sorted_groups.end (),
-										[] (const group *a, const group *b) -> bool
-											{ return (*a) < (*b); });
-									for (group *grp : sorted_groups)
-										{
-											//pl->log (LT_DEBUG) << "Testing \"" << grp->get_name () << "\" (power " << grp->get_power () << ")" << std::endl;
-											if (grp->has (*perm))
-												{ sgrp = grp; break; }
-										}
-									
-									if (sgrp)
-										{
-											const char *name = sgrp->get_name ();
-											bool insert_n =
-												(name[0] == 'a') || (name[0] == 'o') ||
-												(name[0] == 'i') || (name[0] == 'e');
-											
-											std::ostringstream ss;
-											ss << "§4 * §cYou must be *§7at least§c* a";
-											if (insert_n)
-												ss << 'n';
-											ss << " §" << sgrp->get_color () << sgrp->get_name () << "§c to do that§7.";
-											pl->message_nowrap (ss.str ());
-										}
-									else
-										pl->message_nowrap ("§cYou are not allowed to do that§7.");
-									return;
-								}
-						}
-				}
-				
 				cmd->execute (pl, cread);
 				return;
 			}
@@ -1104,11 +1110,13 @@ namespace hCraft {
 	continue_write:
 		std::ostringstream ss;
 		
-		group *mgrp = pl->rnk.main_group;
-		for (group *grp : pl->rnk.get_groups ())
+		group *mgrp = pl->get_rank ().main ();
+		ss << mgrp->get_mprefix ();
+		for (group *grp : pl->get_rank ().get_groups ())
 			ss << grp->get_prefix ();
-		ss << "§" << mgrp->get_color () << pl->get_username ();
-		for (group *grp : pl->rnk.get_groups ())
+		ss << pl->get_colored_nickname ();
+		ss << mgrp->get_msuffix ();
+		for (group *grp : pl->get_rank ().get_groups ())
 			ss << grp->get_suffix ();
 		ss << "§f: " << msg;
 		
@@ -1237,7 +1245,14 @@ namespace hCraft {
 				return;
 			}
 		
-		pl->get_world ()->queue_update (x, y, z, 0, 0, pl);
+		{
+			int xx, yy, zz;
+			for (xx = (x - 3); xx <= (x + 3); ++xx)
+				for (yy = (y - 3); yy <= (y + 3); ++yy)
+					for (zz = (z - 3); zz <= (z + 3); ++zz)
+						pl->get_world ()->queue_update (xx, yy, zz, 0, 0);
+		}
+		//pl->get_world ()->queue_update (x, y, z, 0, 0, pl);
 	}
 	
 	void

@@ -26,21 +26,76 @@ namespace hCraft {
 	namespace commands {
 		
 		/* 
+		 * /help -
+		 * 
 		 * When executed without any arguments, the command displays general tips,
 		 * tricks and hints about what the player can do in the server. Otherwise,
 		 * it displays detailed information about the supplied command.
+		 * 
+		 * Permissions:
+		 *   - command.info.help
+		 *       Needed to execute the command.
 		 */
 		class c_help: public command
 		{
 		public:
-			virtual const char* get_name ();
-			virtual const char* get_summary ();
-			virtual int get_usage_count ();
-			virtual const char* get_usage (int n);
-			virtual const char* get_usage_help (int n);
-			virtual const char** get_examples ();
-			virtual const char** get_permissions ();
-			virtual void execute (player *pl, command_reader& reader);
+			const char* get_name () { return "help"; }
+			
+			const char*
+			get_summary ()
+				{ return "Displays general information about the server or about a "
+								 "specific command."; }
+			
+			const char**
+			get_usage ()
+			{
+				static const char *usage[] =
+					{
+						"/help",
+						"/help [--summary/-s] <command>",
+						"/help [--help/--summary]",
+						nullptr,
+					};
+				return usage;
+			}
+			
+			const char**
+			get_help ()
+			{
+				static const char *help[] =
+					{
+						"Displays general information, tips, tricks and hints about "
+						"the server and/or the software that is running it.",
+					
+						"Shows a detailed description, usage patterns, and examples (if "
+						"available) about the specified command (<command>) if --summary is "
+						"not specified. Otherwise, only a brief summary about the command "
+						"is shown.",
+					
+						"Same as calling >/help< on >help< (\"/help [-s] help\")",
+						nullptr,
+					};
+				return help;
+			}
+			
+			const char**
+			get_examples ()
+			{
+				static const char *examples[] =
+					{
+						"/help",
+						"/help cuboid",
+						"/help -s ping",
+						"/help --help",
+						nullptr,
+					};
+				return examples;
+			}
+			
+			const char* get_exec_permission () { return "command.info.help"; }
+			
+		//----
+			void execute (player *pl, command_reader& reader);
 		};
 	}
 }

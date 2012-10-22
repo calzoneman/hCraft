@@ -29,104 +29,30 @@
 namespace hCraft {
 	namespace commands {
 		
-		const char*
-		c_wcreate::get_name ()
-			{ return "wcreate"; }
-		
-		const char*
-		c_wcreate::get_summary ()
-			{ return "Creates a new world, and if requested, also loads it into the server's world list."; }
-		
-		int
-		c_wcreate::get_usage_count ()
-			{ return 3; }
-		
-		const char*
-		c_wcreate::get_usage (int n)
-		{
-			static const char *usage[3] =
-				{
-					"/wcreate [--load] <world>",
-					"/wcreate [--load] [--provider <prov>] [--generator <gen>, "
-						"--seed <seed>] [--width <width>] [--depth <depth>] <world>",
-					"/wcreate [--help/--summary]",
-				};
-			
-			return (n >= this->get_usage_count ()) ? "" : usage[n];
-		}
-		
-		const char*
-		c_wcreate::get_usage_help (int n)
-		{
-			static const char *help[3] =
-				{
-					"Creates a new infinite world called <world> using the default "
-					"world provider \"hw\" (HWv1) and world generator \"flatgrass\". "
-					"If flag --load is specified, the created world will then be "
-					"immediately loaded into the server's world list.",
-					
-					"A more detailed form of the above: the user can choose the size "
-					"of the new world, possibly making it finite; and use a custom "
-					"world provider and/or a generator (a seed number to the generator "
-					"can be provided using --seed). To get a list of currently "
-					"supported providers: do \"/wproviders\". As for generators, "
-					"execute \"/wgenerators\".",
-					
-					"Same as calling >/help< on >wcreate< (\"/help [-s] wcreate\")",
-				};
-			
-			return (n >= this->get_usage_count ()) ? "" : help[n];
-		}
-		
-		const char**
-		c_wcreate::get_examples ()
-		{
-			static const char *examples[] =
-				{
-					"/wcreate world2",
-					"/wcreate -w 256 -d 256 testworld",
-					"/wcreate --provider=\"mcsharp\" -w 512 -d 512 another-world",
-					"/wcreate --provider=\"hw\" default-world",
-					nullptr,
-				};
-			
-			return examples;
-		}
-		
-		const char**
-		c_wcreate::get_permissions ()
-		{
-			static const char *perms[] =
-				{
-					"command.world.wcreate",
-					nullptr,
-				};
-			
-			return perms;
-		}
-		
-		
-		
-	//----
-		
+		/* 
+		 * /wcreate -
+		 * 
+		 * Creates a new world, and if requested, loads it into the current world
+		 * list.
+		 * 
+		 * Permissions:
+		 *   - command.world.wcreate
+		 *       Needed to execute the command.
+		 */
 		void
 		c_wcreate::execute (player *pl, command_reader& reader)
 		{
-			reader.add_option ("help", "h", false, false, false);
-			reader.add_option ("summary", "s", false, false, false);
-			reader.add_option ("load", "l", false, false, false);
-			reader.add_option ("width", "w", true, true, false);
-			reader.add_option ("depth", "d", true, true, false);
-			reader.add_option ("provider", "p", true, true, false);
-			reader.add_option ("generator", "g", true, true, false);
-			reader.add_option ("seed", "", true, true, false);
-			if (!reader.parse_args (pl))
+			if (!pl->perm ("command.world.wcreate"))
 				return;
 			
-			if (reader.get_option ("help")->found)
-				{ this->show_help (pl); return; }
-			else if (reader.get_option ("summary")->found)
-				{ this->show_summary (pl); return; }
+			reader.add_option ("load", "l");
+			reader.add_option ("width", "w", true, true);
+			reader.add_option ("depth", "d", true, true);
+			reader.add_option ("provider", "p", true, true);
+			reader.add_option ("generator", "g", true, true);
+			reader.add_option ("seed", "", true, true);
+			if (!reader.parse_args (this, pl))
+				return;
 			
 			if (reader.no_args () || reader.arg_count () > 1)
 				{ this->show_usage (pl); return; }
@@ -148,8 +74,8 @@ namespace hCraft {
 			
 			// world width
 			int world_width = 0;
-			auto opt_width = reader.get_option ("width");
-			if (opt_width->found)
+			auto opt_width = reader.opt ("width");
+			if (opt_width->found ())
 				{
 					if (!opt_width->is_int ())
 						{
@@ -163,8 +89,8 @@ namespace hCraft {
 			
 			// world depth
 			int world_depth = 0;
-			auto opt_depth = reader.get_option ("depth");
-			if (opt_depth->found)
+			auto opt_depth = reader.opt ("depth");
+			if (opt_depth->found ())
 				{
 					if (!opt_depth->is_int ())
 						{
@@ -178,16 +104,16 @@ namespace hCraft {
 			
 			// world provider
 			std::string provider_name ("hw");
-			auto opt_prov = reader.get_option ("provider");
-			if (opt_prov->found)
+			auto opt_prov = reader.opt ("provider");
+			if (opt_prov->found ())
 				{
 					provider_name.assign (opt_prov->as_string ());
 				}
 			
 			// world generator
 			std::string gen_name ("flatgrass");
-			auto opt_gen = reader.get_option ("generator");
-			if (opt_gen->found)
+			auto opt_gen = reader.opt ("generator");
+			if (opt_gen->found ())
 				{
 					gen_name.assign (opt_gen->as_string ());
 				}
@@ -196,8 +122,8 @@ namespace hCraft {
 			int gen_seed = std::chrono::duration_cast<std::chrono::milliseconds> (
 				std::chrono::high_resolution_clock::now ().time_since_epoch ()).count ()
 				& 0x7FFFFFFF;
-			auto opt_seed = reader.get_option ("seed");
-			if (opt_seed->found)
+			auto opt_seed = reader.opt ("seed");
+			if (opt_seed->found ())
 				{
 					if (opt_seed->is_int ())
 						gen_seed = opt_seed->as_int ();
@@ -206,7 +132,7 @@ namespace hCraft {
 				}
 			
 			// load world
-			bool load_world = reader.get_option ("load")->found;
+			bool load_world = reader.opt ("load")->found ();
 			
 		//----
 			
@@ -232,7 +158,7 @@ namespace hCraft {
 					return;
 				}
 			
-			pl->message ("§f - §aCreating world §e" + world_name + "§f...");
+			pl->message ("§aCreating world §e" + world_name + "§f:");
 			world *wr = new world (world_name.c_str (), gen, prov);
 			wr->set_width (world_width);
 			wr->set_depth (world_depth);
@@ -255,7 +181,7 @@ namespace hCraft {
 					delete wr;
 				}
 			
-			pl->message_nowrap ("§eWorld §a" + world_name + " §ehas been successfully created§f.");
+			pl->message_nowrap ("§f - §2Done§f.");
 		}
 	}
 }

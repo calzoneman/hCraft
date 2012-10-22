@@ -55,10 +55,10 @@ namespace hCraft {
 						out->set_id (x, y, z, BT_DIRT);
 					out->set_id (x, y, z, BT_GRASS);
 					
-					if (dist (this->rnd) > 15)
-						out->set_id_and_meta (x, y + 1, z, BT_TALL_GRASS, 1);
+					//if (dist (this->rnd) > 15)
+					//	out->set_id_and_meta (x, y + 1, z, BT_TALL_GRASS, 1);
 					
-					out->set_biome (x, z, BI_HELL);
+					out->set_biome (x, z, BI_FOREST);
 				}
 	}
 }

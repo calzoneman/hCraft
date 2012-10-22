@@ -37,8 +37,12 @@ namespace hCraft {
 		int  power;      // groups are sorted using this field (higher power = higher-ranked group).
 		char name[25];   // 24 chars max
 		char col;        // name color.
-		char prefix[33]; // 32 chars max
-		char suffix[33]; // 32 chars max
+		
+		// 32 chars max
+		char prefix[33];
+		char suffix[33];
+		char mprefix[33]; // used only if the group is the main group.
+		char msuffix[33]; // used only if the group is the main group.
 		
 		bool chat;       // if players of this group can send chat messages.
 		bool build;      // whether players of this group can modify blocks.
@@ -101,9 +105,13 @@ namespace hCraft {
 		
 		inline const char* get_prefix () const { return this->prefix; }
 		void set_prefix (const char *val);
+		inline const char* get_mprefix () const { return this->mprefix; }
+		void set_mprefix (const char *val);
 		
 		inline const char* get_suffix () const { return this->suffix; }
 		void set_suffix (const char *val);
+		inline const char* get_msuffix () const { return this->msuffix; }
+		void set_msuffix (const char *val);
 		
 		inline bool can_chat () const { return this->chat; }
 		inline void can_chat (bool val) { this->chat = val; }
@@ -194,6 +202,8 @@ namespace hCraft {
 		 * Returns the group that has the highest power field.
 		 */
 		group* highest () const;
+		group* main () const
+			{ return this->main_group; }
 		
 		/* 
 		 * Checks whether one or more of the groups contained in this rank have

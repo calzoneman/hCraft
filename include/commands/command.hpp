@@ -26,8 +26,8 @@
 
 namespace hCraft {
 	
-	class player;
-	
+	class player; // forward dec
+	class command;
 	
 	/* 
 	 * Command argument parser.
@@ -35,25 +35,48 @@ namespace hCraft {
 	class command_reader
 	{
 	public:
-		struct option
+		class option
 		{
+			friend class command_reader;
+			
 			const char *lname;
 			const char *sname;
 			bool has_arg;
 			bool arg_req;
 			bool required;
-			bool found;
+			bool was_found;
 			
 			std::string arg;
-			bool got_arg;
+			bool found_arg;
 			
-		//---
+		public:
+			option (const char *lname, const char *sname, bool has_arg, bool arg_req,
+				bool opt_req)
+			{
+				this->lname = lname;
+				this->sname = sname;
+				this->has_arg = has_arg;
+				this->arg_req = arg_req;
+				this->required = opt_req;
+				this->was_found = false;
+				this->found_arg = false;
+			}
 			
-			bool is_string () { return true; }
-			std::string& as_string () { return this->arg; }
+		public:
+			inline const char* long_name () const { return this->lname; }
+			inline const char* short_name () const { return this->sname; }
 			
-			bool is_int ();
-			int as_int ();
+			inline bool found () const { return this->was_found; }
+			inline bool is_required () const { return this->required; }
+			inline bool is_arg_required () const { return this->arg_req; }
+			inline bool is_arg_passable () const { return this->has_arg; }
+			inline bool got_arg () const { return this->found_arg; }
+			
+			inline bool is_string () const { return true; }
+			inline const std::string& as_string () const { return this->arg; }
+			
+			bool is_int () const;
+			int as_int () const;
 		};
 		
 	private:
@@ -67,13 +90,13 @@ namespace hCraft {
 		inline std::vector<std::string>& get_args () { return this->non_opts; }
 		
 		inline bool no_args () { return this->non_opts.size () == 0; }
-		inline bool have_args () { return this->non_opts.size () > 0; }
+		inline bool has_args () { return this->non_opts.size () > 0; }
 		inline int  arg_count () { return this->non_opts.size (); }
 		inline std::string& arg (int n) { return this->non_opts[n]; }
 		inline const std::string& get_arg_string () { return this->args; }
 		
 		inline bool no_flags () { return this->options.size () == 0; }
-		inline bool have_flags () { return this->options.size () > 0; }
+		inline bool has_flags () { return this->options.size () > 0; }
 		inline int  flag_count () { return this->options.size (); }
 		
 		inline std::vector<std::string>::iterator
@@ -101,20 +124,25 @@ namespace hCraft {
 		 * Adds the specified option to the parser's option list.
 		 * These will be parsed in a call to parse_args ().
 		 */
-		void add_option (const char *long_name, const char *short_name, bool has_arg,
-			bool arg_required, bool opt_required);
+		void add_option (const char *long_name, const char *short_name = "",
+			bool has_arg = false, bool arg_required = false, bool opt_required = false);
 		
 		/* 
 		 * Finds and returns the option with the given long name.
 		 */
-		option* get_option (const char *long_name);
+		option* opt (const char *long_name);
 		
 		/* 
 		 * Parses the argument list.
 		 * In case of an error, false is returned and an appropriate message is sent
 		 * to player @{err}.
 		 */
-		bool parse_args (player *err);
+		bool parse_args (command *cmd, player *err, bool handle_help = true);
+		
+	//----
+		
+		bool arg_is_int (int index);
+		int arg_as_int (int index);
 	};
 	
 	
@@ -141,20 +169,14 @@ namespace hCraft {
 		virtual const char* get_summary () = 0;
 		
 		/* 
-		 * Returns the total number of usage patterns available.
+		 * Returns a null-terminated array of usage patterns.
 		 */
-		virtual int get_usage_count () = 0;
+		virtual const char** get_usage () = 0;
 		
 		/* 
-		 * Returns the N'th usage pattern.
+		 * Returns a null-terminated array of usage pattern descriptions.
 		 */
-		virtual const char* get_usage (int n) = 0;
-		
-		/* 
-		 * Returns a string containing a detailed and descriptive information about
-		 * the N'th usage pattern.
-		 */
-		virtual const char* get_usage_help (int n) = 0;
+		virtual const char** get_help () = 0;
 		
 		/* 
 		 * Returns a null terminated array of command invocation examples.
@@ -162,9 +184,9 @@ namespace hCraft {
 		virtual const char** get_examples () = 0;
 		
 		/* 
-		 * Returns a null terminated array of permission nodes.
+		 * Returns the permission node needed to execute the command.
 		 */
-		virtual const char** get_permissions () = 0;
+		virtual const char* get_exec_permission () = 0;
 		
 	//----
 		
@@ -201,13 +223,15 @@ namespace hCraft {
 		~command_list ();
 		
 		
+		
 		/* 
 		 * Adds the specified command to the list.
 		 */
 		void add (command *cmd);
 		
 		/* 
-		 * Finds the command that has the specified name (case-sensitive).
+		 * Finds the command that has the specified name (case-sensitive)
+		 * (also checks aliases).
 		 */
 		command* find (const char *name);
 	};

@@ -57,7 +57,7 @@ namespace hCraft {
 		permission result {};
 		
 		int depth = 0;
-		for ( ; *ptr != '\0' && depth < 4; ++ depth)
+		for ( ; *ptr != '\0' && depth < 5; ++ depth)
 			{
 				std::unordered_map<std::string, int>& id_map = this->id_maps[depth];
 				std::vector<std::string>& name_map = this->name_maps[depth];
@@ -104,7 +104,7 @@ namespace hCraft {
 				result.nodes[depth] = id;
 			}
 		
-		for (; depth < 4; ++depth)
+		for (; depth < 5; ++depth)
 			result.nodes[depth] = 0;
 		
 		return result;
@@ -124,7 +124,7 @@ namespace hCraft {
 		permission result {};
 		
 		int depth = 0;
-		for ( ; *ptr != '\0' && depth < 4; ++ depth)
+		for ( ; *ptr != '\0' && depth < 5; ++ depth)
 			{
 				const std::unordered_map<std::string, int>& id_map = this->id_maps[depth];
 				const std::vector<std::string>& name_map = this->name_maps[depth];
@@ -167,7 +167,7 @@ namespace hCraft {
 				result.nodes[depth] = itr->second;
 			}
 		
-		for (; depth < 4; ++depth)
+		for (; depth < 5; ++depth)
 			result.nodes[depth] = 0;
 		
 		return result;
@@ -182,7 +182,7 @@ namespace hCraft {
 	permission_manager::to_string (permission perm) const
 	{
 		std::string str;
-		for (int i = 0; i < 4; ++i)
+		for (int i = 0; i < 5; ++i)
 			{
 				int node = perm.nodes[i];
 				if (node == 0)

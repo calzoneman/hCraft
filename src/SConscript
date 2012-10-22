@@ -22,13 +22,16 @@ hCraft_sources = Split("""
 		rank.cpp
 		permissions.cpp
 		sql.cpp
+		messages.cpp
 		
 		commands/command.cpp
 		commands/help.cpp
 		commands/me.cpp
 		commands/ping.cpp
 		commands/wcreate.cpp
+		commands/wload.cpp
 		commands/world.cpp
+		commands/tp.cpp
 		""")
 
 hCraft_libs = Split("""

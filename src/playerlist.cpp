@@ -253,6 +253,22 @@ namespace hCraft {
 		this->message (msg.c_str (), except);
 	}
 	
+	void
+	playerlist::message_nowrap (const char *msg, player *except)
+	{
+		this->all (
+			[msg] (player *pl)
+				{
+					pl->message_nowrap (msg);
+				}, except);
+	}
+	
+	void
+	playerlist::message_nowrap (const std::string& msg, player *except)
+	{
+		this->message_nowrap (msg.c_str (), except);
+	}
+	
 	
 	
 	/* 

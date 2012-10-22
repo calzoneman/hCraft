@@ -25,93 +25,29 @@
 namespace hCraft {
 	namespace commands {
 		
-		const char*
-		c_ping::get_name ()
-			{ return "ping"; }
-		
-		const char*
-		c_ping::get_summary ()
-			{ return "Checks how much time it takes (in milliseconds) to ping and get a response from a player."; }
-		
-		int
-		c_ping::get_usage_count ()
-			{ return 3; }
-		
-		const char*
-		c_ping::get_usage (int n)
-		{
-			static const char *usage[3] =
-				{
-					"/ping",
-					"/ping <player>",
-					"/ping [--help/--summary]",
-				};
-			
-			return (n >= this->get_usage_count ()) ? "" : usage[n];
-		}
-		
-		const char*
-		c_ping::get_usage_help (int n)
-		{
-			static const char *help[3] =
-				{
-					"Displays the amount of time (in milliseconds) to both send and retreive"
-					"a ping packet (keep alive) to/from the calling player.",
-					
-					"Measures ping time for <player> instead.",
-					
-					"Same as calling >/help< on >ping< (\"/help [-s] ping\")",
-				};
-			
-			return (n >= this->get_usage_count ()) ? "" : help[n];
-		}
-		
-		const char**
-		c_ping::get_examples ()
-		{
-			static const char *examples[] =
-				{
-					"/ping",
-					"/ping user1234",
-					nullptr,
-				};
-			
-			return examples;
-		}
-		
-		const char**
-		c_ping::get_permissions ()
-		{
-			static const char *perms[] =
-				{
-					"command.misc.ping",
-					nullptr,
-				};
-			
-			return perms;
-		}
-		
-		
-		
-	//----
-		
+		/* 
+		 * /ping -
+		 * 
+		 * Displays to the player how much time it takes for the server to both
+		 * send and retreive a single keep alive (ping: 0x00) packet (in ms).
+		 * 
+		 * Permissions:
+		 *   - command.misc.ping
+		 *       Needed to execute the command.
+		 */
 		void
 		c_ping::execute (player *pl, command_reader& reader)
 		{
-			reader.add_option ("help", "h", false, false, false);
-			reader.add_option ("summary", "s", false, false, false);
-			if (!reader.parse_args (pl))
+			if (!pl->perm ("command.misc.ping"))
 				return;
 			
-			if (reader.get_option ("help")->found)
-				{ this->show_help (pl); return; }
-			else if (reader.get_option ("summary")->found)
-				{ this->show_summary (pl); return; }
+			if (!reader.parse_args (this, pl))
+				return;
 			
 			if (reader.arg_count () > 1)
 				{ this->show_usage (pl); return; }
 			
-			if (reader.have_args ())
+			if (reader.has_args ())
 				{
 					player *target = pl->get_server ().get_players ().find (reader.arg (0).c_str ());
 					if (!target)

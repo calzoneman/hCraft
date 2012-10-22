@@ -35,8 +35,8 @@ namespace hCraft {
 		this->power = power;
 		std::strcpy (this->name, name);
 		this->col = 'f';
-		this->prefix[0] = '\0';
-		this->suffix[0] = '\0';
+		this->prefix[0] = this->mprefix[0] = '\0';
+		this->suffix[0] = this->msuffix[0] = '\0';
 		this->chat = true;
 		this->build = true;
 		this->move = true;
@@ -58,6 +58,19 @@ namespace hCraft {
 	}
 	
 	void
+	group::set_mprefix (const char *val)
+	{
+		int len = std::strlen (val);
+		if (len > 32)
+			{
+				std::memcpy (this->mprefix, val, 32);
+				this->mprefix[32] = '\0';
+			}
+		else
+			std::strcpy (this->mprefix, val);
+	}
+	
+	void
 	group::set_suffix (const char *val)
 	{
 		int len = std::strlen (val);
@@ -68,6 +81,19 @@ namespace hCraft {
 			}
 		else
 			std::strcpy (this->suffix, val);
+	}
+	
+	void
+	group::set_msuffix (const char *val)
+	{
+		int len = std::strlen (val);
+		if (len > 32)
+			{
+				std::memcpy (this->msuffix, val, 32);
+				this->msuffix[32] = '\0';
+			}
+		else
+			std::strcpy (this->msuffix, val);
 	}
 	
 	
@@ -85,9 +111,7 @@ namespace hCraft {
 	void
 	group::add (const char *perm)
 	{
-		permission res = this->perm_man.get (perm);
-		if (!res.valid ())
-			return;
+		permission res = this->perm_man.add (perm);
 		this->add (res);
 	}
 	
@@ -133,9 +157,12 @@ namespace hCraft {
 			{
 				int node;
 				bool match = true;
-				for (int i = 0; i < 4; ++i)
+				for (int i = 0; i < 5; ++i)
 					{
 						node = p.nodes[i];
+						if (node == -1)
+							break;
+						
 						if (node == PERM_FLAG_ALL)
 							{ match = true; break; }
 						else if (node == PERM_FLAG_NONE)
