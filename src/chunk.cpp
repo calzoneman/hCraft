@@ -433,15 +433,15 @@ namespace hCraft {
 		// the top-most layer is always lit.
 		this->set_sky_light (x, 255, z, 15);
 		
-		char cur_opacity = 15;
+		char curr_opacity = 15;
 		for (int y = 254; y >= 0; --y)
 			{
-				if (cur_opacity > 0)
-					cur_opacity -= block_info::from_id (this->get_id (x, y, z))->opacity;
+				if (curr_opacity > 0)
+					curr_opacity -= block_info::from_id (this->get_id (x, y, z))->opacity;
 				else if (stop_at_zero)
 					break;
 				
-				this->set_sky_light (x, y, z, (cur_opacity > 0) ? cur_opacity : 0);
+				this->set_sky_light (x, y, z, (curr_opacity > 0) ? curr_opacity : 0);
 			}
 	}
 	

@@ -1097,6 +1097,8 @@ namespace hCraft {
 		if (!pl->logged_in)
 			{ pl->disconnect (); return; }
 		
+		bool is_global_message = false;
+		
 		char text[384];
 		int  text_len = reader.read_string (text, 360);
 		if (text_len <= 0)
@@ -1151,9 +1153,30 @@ namespace hCraft {
 				cmd->execute (pl, cread);
 				return;
 			}
+		
+		// handle chat modes
+		if (msg[0] == '#')
+			{
+				// server-wide message
+				
+				if (sutils::ltrim (msg.erase (0, 1)).empty ())
+					{
+						msg.push_back ('#');
+						goto continue_write;
+					}
+				
+				is_global_message = true;
+			}
+		else if (msg[0] == '@')
+			{
+				// TODO: handle private messages
+			}
 			
 	continue_write:
 		std::ostringstream ss;
+		
+		if (is_global_message)
+			ss << "§c# ";
 		
 		group *mgrp = pl->get_rank ().main ();
 		ss << mgrp->get_mprefix ();
@@ -1165,10 +1188,21 @@ namespace hCraft {
 			ss << grp->get_suffix ();
 		ss << "§f: " << msg;
 		
-		pl->get_logger () (LT_CHAT) << pl->get_username () << ": " << msg << std::endl;
 		std::string out = ss.str ();
 		
-		pl->get_world ()->get_players ().all (
+		playerlist *target;
+		if (is_global_message)
+			{
+				pl->get_logger () (LT_CHAT) << "#" << pl->get_username () << ": " << msg << std::endl;
+				target = &pl->get_server ().get_players ();
+			}
+		else
+			{
+				pl->get_logger () (LT_CHAT) << pl->get_username () << ": " << msg << std::endl;
+				target = &pl->get_world ()->get_players ();
+			}
+		
+		target->all (
 			[&out] (player *pl)
 				{
 					pl->message (out.c_str ());

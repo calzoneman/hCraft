@@ -127,6 +127,7 @@ namespace hCraft {
 						pl->message ("§cWorld §7" + world_name + " §cis already autoloaded§7.");
 				}
 			
+			wr->start ();
 			pl->get_server ().get_players ().message (
 				"§a * §6World §a" + world_name + " §6has been loaded§f.");
 		}

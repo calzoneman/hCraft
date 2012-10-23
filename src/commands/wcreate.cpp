@@ -175,6 +175,8 @@ namespace hCraft {
 							delete wr;
 							pl->message_nowrap ("§cFailed to load world§7.");
 						}
+					
+					wr->start ();
 				}
 			else
 				{

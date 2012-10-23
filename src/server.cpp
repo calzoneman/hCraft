@@ -322,6 +322,7 @@ namespace hCraft {
 				world *other = itr->second;
 				if (other == w)
 					{
+						other->stop ();
 						this->worlds.erase (itr);
 						delete other;
 						break;
