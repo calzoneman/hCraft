@@ -1324,14 +1324,7 @@ namespace hCraft {
 				return;
 			}
 		
-		{
-			int xx, yy, zz;
-			for (xx = (x - 3); xx <= (x + 3); ++xx)
-				for (yy = (y - 3); yy <= (y + 3); ++yy)
-					for (zz = (z - 3); zz <= (z + 3); ++zz)
-						pl->get_world ()->queue_update (xx, yy, zz, 0, 0);
-		}
-		//pl->get_world ()->queue_update (x, y, z, 0, 0, pl);
+		pl->get_world ()->queue_update (x, y, z, 0, 0, pl);
 	}
 	
 	void
