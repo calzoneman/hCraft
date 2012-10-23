@@ -88,6 +88,69 @@ namespace hCraft {
 		//----
 			void execute (player *pl, command_reader& reader);
 		};
+		
+		
+		/* 
+		 * /nick -
+		 * 
+		 * Changes the nickname of a player to the one requested.
+		 * 
+		 * Permissions:
+		 *   - command.chat.nick
+		 *       Needed to execute the command.
+		 */
+		class c_nick: public command
+		{
+		public:
+			const char* get_name () { return "nick"; }
+			
+			const char*
+			get_summary ()
+				{ return "Changes the nickname of a player to the one requested."; }
+			
+			const char**
+			get_usage ()
+			{
+				static const char *usage[] =
+					{
+						"/nick <player> <nickname>",
+						"/nick [--help/--summary]",
+						nullptr,
+					};
+				return usage;
+			}
+			
+			const char**
+			get_help ()
+			{
+				static const char *help[] =
+					{
+						"Changes the nickname of player <player> to <nickname>. If <nickname> "
+						"is not specified, then the player's nickname will be removed.",
+					
+						"Same as calling >/help< on >nick< (\"/help [-s] nick\")",
+						nullptr,
+					};
+				return help;
+			}
+			
+			const char**
+			get_examples ()
+			{
+				static const char *examples[] =
+					{
+						"/nick dude123 Super Dude",
+						"/nick someone155",
+						nullptr,
+					};
+				return examples;
+			}
+			
+			const char* get_exec_permission () { return "command.chat.nick"; }
+			
+		//----
+			void execute (player *pl, command_reader& reader);
+		};
 	}
 }
 

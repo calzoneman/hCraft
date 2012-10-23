@@ -234,6 +234,24 @@ namespace hCraft {
 	
 	
 	/* 
+	 * Inserts all players except player @{except} into vector @{vec}.
+	 */
+	void
+	playerlist::populate (std::vector<player *>& vec, player *except)
+	{
+		std::lock_guard<std::mutex> guard {this->lock};
+		
+		for (auto itr = this->players.begin (); itr != this->players.end (); ++itr)
+			{
+				player *pl = itr->second;
+				if (pl != except)
+					vec.push_back (pl);
+			}
+	}
+	
+	
+	
+	/* 
 	 * Broadcasts the given message to all players in this list.
 	 */
 	

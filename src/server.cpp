@@ -749,6 +749,8 @@ namespace hCraft {
 		_add_command (this->perms, this->commands, "wload");
 		_add_command (this->perms, this->commands, "world");
 		_add_command (this->perms, this->commands, "tp");
+		_add_command (this->perms, this->commands, "nick");
+		_add_command (this->perms, this->commands, "wunload");
 	}
 	
 	void
@@ -808,6 +810,8 @@ namespace hCraft {
 		grp_executive->inherit (grp_admin);
 		grp_executive->add ("command.world.wcreate");
 		grp_executive->add ("command.world.wload");
+		grp_executive->add ("command.world.wunload");
+		grp_executive->add ("command.chat.nick");
 		
 		group* grp_owner = groups.add (9, "owner");
 		grp_owner->set_color ('6');

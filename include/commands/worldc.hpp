@@ -166,11 +166,11 @@ namespace hCraft {
 						"Loads world <world> from disk into the server's world list, enabling "
 						"players to teleport to it using the \"/world\" command. >NOTE: Two "
 						"worlds with the same name cannot be loaded at once.<",
-					
+						
 						"Same as above, but also adds the world into the server's >autoload< "
 						"list. This will make the server automatically load the world at "
 						"startup.",
-					
+						
 						"Same as calling >/help< on >wload< (\"/help [-s] wload\")",
 						nullptr,
 					};
@@ -191,6 +191,89 @@ namespace hCraft {
 			}
 			
 			const char* get_exec_permission () { return "command.world.wload"; }
+			
+		//----
+			void execute (player *pl, command_reader& reader);
+		};
+		
+		
+		/* 
+		 * /wunload -
+		 * 
+		 * Saves and removes a requested world from the server's online world world
+		 * list, optionally removing it from the autoload list as well.
+		 * 
+		 * Permissions:
+		 *   - command.world.wunload
+		 *       Needed to execute the command.
+		 */
+		class c_wunload: public command
+		{
+		public:
+			const char* get_name () { return "wunload"; }
+			
+			const char**
+			get_aliases ()
+			{
+				static const char* aliases[] =
+					{
+						"unload-world",
+						"world-unload",
+						nullptr,
+					};
+				return aliases;
+			}
+			
+			const char*
+			get_summary ()
+				{ return "Saves and removes a requested world from the server's online "
+								 "world list, optionally removing it from the autoload list as "
+								 "well."; }
+			
+			const char**
+			get_usage ()
+			{
+				static const char *usage[] =
+					{
+						"/wunload <world>",
+						"/wunload [--autoload] <world>",
+						"/wunload [--help/--summary]",
+						nullptr,
+					};
+				return usage;
+			}
+			
+			const char**
+			get_help ()
+			{
+				static const char *help[] =
+					{
+						"Attempts to remove world <world> from the server's online world list. "
+						">NOTE: The world is SAVED before being unloaded.<",
+						
+						"Same as above, but also removes the world from the autoload list (if "
+						"present).",
+						
+						"Same as calling >/help< on >wunload< (\"/help [-s] wunload\")",
+						nullptr,
+					};
+				return help;
+			}
+			
+			const char**
+			get_examples ()
+			{
+				static const char *examples[] =
+					{
+						"/wunload --autoload mfb3",
+						"/wunload super-world",
+						"/wunload -a mfb4",
+						nullptr,
+					};
+				return examples;
+			}
+			
+			const char* get_exec_permission () { return "command.world.wunload"; }
 			
 		//----
 			void execute (player *pl, command_reader& reader);

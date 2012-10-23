@@ -25,6 +25,7 @@
 #include <mutex>
 #include <functional>
 #include <string>
+#include <vector>
 
 
 namespace hCraft {
@@ -122,6 +123,13 @@ namespace hCraft {
 		 */
 		void remove_if (std::function<bool (player *)> pred,
 			bool delete_players = false);
+		
+		
+		
+		/* 
+		 * Inserts all players except player @{except} into vector @{vec}.
+		 */
+		void populate (std::vector<player *>& vec, player *except = nullptr);
 		
 		
 		

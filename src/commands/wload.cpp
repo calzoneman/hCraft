@@ -27,6 +27,22 @@
 namespace hCraft {
 	namespace commands {
 		
+		static bool
+		add_to_autoload (server& srv, const std::string& world_name)
+		{
+			int count = srv.sql ().scalar_int (
+				("SELECT count(*) FROM `autoloaded-worlds` WHERE `name`='"
+				+ world_name + "';").c_str ());
+			if (count != 0)
+				return false;
+			
+			srv.sql ().execute (
+				("INSERT INTO `autoloaded-worlds` (`name`) VALUES ('"
+				+ world_name + "');").c_str ());
+			return true;
+		}
+		
+		
 		/* 
 		 * /wload -
 		 * 
@@ -54,7 +70,15 @@ namespace hCraft {
 			world *twr = pl->get_server ().find_world (world_name.c_str ());
 			if (twr)
 				{
-					pl->message ("§c * §eWorld §b" + world_name + " §eis already loaded§f.");
+					if (reader.opt ("autoload")->found ())
+						{
+							if (add_to_autoload (pl->get_server (), world_name))
+								pl->message ("§eWorld §b" + world_name + " §ehas been added to the autoload list§f.");
+							else
+								pl->message ("§cWorld §7" + world_name + " §cis already autoloaded§7.");
+						}
+					else
+						pl->message ("§c * §eWorld §b" + world_name + " §eis already loaded§f.");
 					return;
 				}
 			
@@ -97,20 +121,10 @@ namespace hCraft {
 			// add to autoload list
 			if (reader.opt ("autoload")->found ())
 				{
-					int count = pl->get_server ().sql ().scalar_int (
-						("SELECT count(*) FROM `autoloaded-worlds` WHERE `name`='"
-						+ world_name + "';").c_str ());
-					if (count != 0)
-						{
-							pl->message ("§eWorld §b" + world_name + " §eis already autoloaded§f.");
-						}
+					if (add_to_autoload (pl->get_server (), world_name))
+						pl->message ("§eWorld §b" + world_name + " §ehas been added to the autoload list§f.");
 					else
-						{
-							pl->get_server ().sql ().execute (
-								("INSERT INTO `autoloaded-worlds` (`name`) VALUES ('"
-								+ world_name + "');").c_str ());
-							pl->message ("§eWorld §b" + world_name + " §ehas been added to the autoload list§f.");
-						}
+						pl->message ("§cWorld §7" + world_name + " §cis already autoloaded§7.");
 				}
 			
 			pl->get_server ().get_players ().message (

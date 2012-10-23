@@ -40,6 +40,7 @@ namespace hCraft {
 	
 	// chat commands:
 	static command* create_c_me () { return new commands::c_me (); }
+	static command* create_c_nick () { return new commands::c_nick (); }
 	
 	// misc commands:
 	static command* create_c_ping () { return new commands::c_ping (); }
@@ -47,6 +48,7 @@ namespace hCraft {
 	// world commands:
 	static command* create_c_wcreate () { return new commands::c_wcreate (); }
 	static command* create_c_wload () { return new commands::c_wload (); }
+	static command* create_c_wunload () { return new commands::c_wunload (); }
 	static command* create_c_world () { return new commands::c_world (); }
 	static command* create_c_tp () { return new commands::c_tp (); }
 	
@@ -64,6 +66,8 @@ namespace hCraft {
 			{ "wload", create_c_wload },
 			{ "world", create_c_world },
 			{ "tp", create_c_tp },
+			{ "nick", create_c_nick },
+			{ "wunload", create_c_wunload },
 			};
 		
 		auto itr = creators.find (name);

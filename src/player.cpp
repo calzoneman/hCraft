@@ -320,6 +320,16 @@ namespace hCraft {
 	void
 	player::join_world (world* w)
 	{
+		this->join_world_at (w, w->get_spawn ());
+	}
+	
+	
+	/* 
+	 * Sends the player to the given world at the specified location.
+	 */
+	void
+	player::join_world_at (world *w, entity_pos destpos)
+	{
 		std::lock_guard<std::mutex> guard {this->join_lock};
 		bool had_prev_world = (this->curr_world != nullptr);
 		
@@ -329,10 +339,11 @@ namespace hCraft {
 		if (this->curr_world)
 			{
 				// we first stop the player from moving.
-				entity_pos dest = this->get_pos ();
+				entity_pos curr_pos = this->get_pos ();
 				this->send (packet::make_player_pos_and_look (
-					dest.x, dest.y, dest.z, dest.y + 1.65, dest.r, dest.l, true));
-				this->set_pos (dest);
+					curr_pos.x, curr_pos.y, curr_pos.z, curr_pos.y + 1.65, curr_pos.r,
+					curr_pos.l, true));
+				this->set_pos (curr_pos);
 				
 				// despawn self from other players (and vice-versa).
 				player *me = this;
@@ -348,11 +359,11 @@ namespace hCraft {
 						});
 				
 				// this ensures smooth transitions between worlds:
-				this->stream_common_chunks (w, w->get_spawn ());
+				this->stream_common_chunks (w, destpos);
 			}
 		
 		this->curr_world = w;
-		this->set_pos (w->get_spawn ());
+		this->set_pos (destpos);
 		this->curr_world->get_players ().add (this);
 		this->stream_chunks ();
 		
@@ -520,10 +531,19 @@ namespace hCraft {
 			{
 				chunk *ch = wr->load_chunk (cpos.x, cpos.z);
 				this->send (packet::make_chunk (cpos.x, cpos.z, ch));
-				
-				// spawn self to other players and vice-versa.
+			}
+		
+		this->send (packet::make_player_pos_and_look (
+			dest_pos.x, dest_pos.y, dest_pos.z, dest_pos.y + 1.65, dest_pos.r,
+				dest_pos.l, true));
+		this->set_pos (dest_pos);
+		
+		// spawn self to other players and vice-versa.
+		for (auto cpos : to_load)
+			{
 				player *me = this;
-				if (this->known_chunks.find (cpos) == this->known_chunks.end ())
+				chunk *ch = wr->get_chunk (cpos.x, cpos.z);
+				if (ch)
 					{
 						ch->all_entities (
 							[me] (entity *e)
@@ -539,11 +559,6 @@ namespace hCraft {
 								});
 					}
 			}
-		
-		entity_pos dest = spawn_pos;
-		this->send (packet::make_player_pos_and_look (
-			dest.x, dest.y, dest.z, dest.y + 1.65, dest.r, dest.l, true));
-		this->set_pos (dest);
 		
 		// unload all other chunks
 		for (auto itr = this->known_chunks.begin (); itr != this->known_chunks.end (); )
@@ -913,6 +928,35 @@ namespace hCraft {
 	
 	
 	
+	/* 
+	 * Modifies the player's nickname.
+	 */
+	void
+	player::set_nickname (const char *nick, bool modify_sql)
+	{
+		if (std::strlen (nick) > 36)
+			return;
+		
+		std::strcpy (this->nick, nick);
+		
+		std::string str;
+		str.append ("§");
+		str.push_back (this->rnk.main ()->get_color ());
+		str.append (this->nick);
+		std::strcpy (this->colored_nick, str.c_str ());
+		
+		if (modify_sql)
+			{
+				std::ostringstream ss;
+				ss << "UPDATE `players` SET `nick`='"
+				 << nick << "' WHERE `name`='"
+				 << this->get_username () << "';";
+				this->get_server ().sql ().execute (ss.str ().c_str ());
+			}
+	}
+	
+	
+	
 //----
 	
 	static bool
@@ -987,6 +1031,7 @@ namespace hCraft {
 			}
 		
 		char username[17];
+		/*
 		int username_len = reader.read_string (username, 16);
 		if (username_len < 2)
 			{
@@ -994,7 +1039,7 @@ namespace hCraft {
 				pl->disconnect ();
 				return;
 			}
-		/*
+		*/
 		// Used when testing
 		{
 			static const char *names[] =
@@ -1004,7 +1049,7 @@ namespace hCraft {
 			if (index >= count)
 				index = 0;
 			std::strcpy (username, cur);
-		}*/
+		}
 		
 		
 		pl->log () << "Player " << username << " has logged in from @" << pl->get_ip () << std::endl;

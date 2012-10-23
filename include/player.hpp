@@ -217,6 +217,12 @@ namespace hCraft {
 		void join_world (world* w);
 		
 		/* 
+		 * Sends the player to the given world at the specified location.
+		 */
+		void join_world_at (world *w, entity_pos destpos);
+		
+		
+		/* 
 		 * Loads new close chunks to the player and unloads those that are too
 		 * far away.
 		 */
@@ -269,6 +275,15 @@ namespace hCraft {
 		 * an error message to the player and return false.
 		 */
 		bool perm (const char *perm);
+		
+		
+		
+	//----
+		
+		/* 
+		 * Modifies the player's nickname.
+		 */
+		void set_nickname (const char *nick, bool modify_sql = true);
 	};
 }
 
