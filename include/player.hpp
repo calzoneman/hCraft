@@ -165,7 +165,7 @@ namespace hCraft {
 		inline const rank& get_rank () { return this->rnk; }
 		
 		inline world* get_world () { return this->curr_world; }
-		static constexpr int chunk_radius () { return 7; }
+		static constexpr int chunk_radius () { return 10; }
 		
 		inline int get_ping () { return this->ping_time_ms; }
 		

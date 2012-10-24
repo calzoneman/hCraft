@@ -1031,7 +1031,6 @@ namespace hCraft {
 			}
 		
 		char username[17];
-		/*
 		int username_len = reader.read_string (username, 16);
 		if (username_len < 2)
 			{
@@ -1039,7 +1038,7 @@ namespace hCraft {
 				pl->disconnect ();
 				return;
 			}
-		*/
+		/*
 		// Used when testing
 		{
 			static const char *names[] =
@@ -1050,6 +1049,7 @@ namespace hCraft {
 				index = 0;
 			std::strcpy (username, cur);
 		}
+		*/
 		
 		
 		pl->log () << "Player " << username << " has logged in from @" << pl->get_ip () << std::endl;
